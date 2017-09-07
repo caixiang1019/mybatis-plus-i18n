@@ -190,7 +190,6 @@ public class SqlExecuteUtil {
         Map<Long, Map<String, Object>> map = new HashMap<>();
         try (PreparedStatement psm = connection.prepareStatement(sql)) {
             ResultSet resultSet = psm.executeQuery();
-            List<Long> idList = new ArrayList<>();
             while (resultSet.next()) {
                 Map<String, Object> subMap = new HashMap<>();
                 Long id = resultSet.getLong("id");
@@ -199,9 +198,8 @@ public class SqlExecuteUtil {
                         subMap.put(tableFieldInfo.getProperty(), resultSet.getObject(tableFieldInfo.getProperty()));
                     }
                     map.put(id, subMap);
-                    idList.add(id);
                 } else {
-                    if (!idList.contains(id)) {
+                    if (!map.containsKey(id)) {
                         for (TableFieldInfo tableFieldInfo : tableFieldInfoList) {
                             subMap.put(tableFieldInfo.getProperty(), resultSet.getObject(tableFieldInfo.getProperty()));
                             if (i18nFieldList.contains(tableFieldInfo.getProperty())) {
@@ -209,7 +207,6 @@ public class SqlExecuteUtil {
                             }
                         }
                         map.put(id, subMap);
-                        idList.add(id);
                     }
                 }
             }
