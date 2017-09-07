@@ -47,7 +47,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
     private static final String LANGUAGE_CONSTANT = "language";
     private static final String VALUE_CONSTANT = "value";
     private static final String DELIMITER_DOT = ".";
-    //i18n的标记,暂时给出,尚未用到
+    //i18n的标记,暂时给出,日后扩展可以用
     private boolean i18nFlag = false;
 
 
@@ -70,7 +70,6 @@ public class I18nSqlProcessInterceptor implements Interceptor {
         supportedOperationMap.put(SqlCommandType.DELETE, new String[]{SqlMethod.DELETE.getMethod(), SqlMethod.DELETE_BY_ID.getMethod(), SqlMethod.DELETE_BY_MAP.getMethod()});
         supportedOperationMap.put(SqlCommandType.SELECT, new String[]{SqlMethod.SELECT_BY_ID.getMethod(), SqlMethod.SELECT_LIST.getMethod(), SqlMethod.SELECT_ONE.getMethod(), SqlMethod.SELECT_MAPS.getMethod()});
     }
-
 
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
@@ -115,8 +114,12 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                 } else if (Map.class.isAssignableFrom(parameterClass) && methodSupported(SqlCommandType.UPDATE, baseMethodStr)) {
                     BoundSql boundSql = ms.getSqlSource().getBoundSql(parameter);
                     HashMap map = (HashMap) boundSql.getParameterObject();
-                    //禁止全表update! 等价于entity!=null
-                    Object entity = ((EntityWrapper) map.get("ew")).getEntity();
+                    Object entityWrapper = map.get("ew");
+                    //update 不带where 直接返回原逻辑
+                    if(entityWrapper == null){
+                        return invocation.proceed();
+                    }
+                    Object entity = ((EntityWrapper)entityWrapper).getEntity();
                     List<ParameterMapping> parameterMappingList = boundSql.getParameterMappings();
                     List<String> patametersStrList = parameterMappingList.stream().map(s -> s.getProperty()).collect(Collectors.toList());
                     //只取ew.entity.XXX
@@ -157,7 +160,12 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                     List<ParameterMapping> parameterMappingList = boundSql.getParameterMappings();
                     List<Object> valueList = new ArrayList<>();
                     if (map.containsKey("ew")) {
-                        Object entity = ((EntityWrapper) map.get("ew")).getEntity();
+                        //delete 不带where 直接返回原逻辑
+                        Object entityWrapper = map.get("ew");
+                        if(entityWrapper == null) {
+                            return invocation.proceed();
+                        }
+                        Object entity = ((EntityWrapper)entityWrapper).getEntity();
                         //禁止全表delete! 等价于entity!=null
                         List<String> patametersStrList = parameterMappingList.stream().map(s -> s.getProperty().substring(s.getProperty().lastIndexOf(DELIMITER_DOT) + 1)).collect(Collectors.toList());
                         valueList = patametersStrList.stream().map(p -> ReflectionUtil.getMethodValue(entity, p)).collect(Collectors.toList());

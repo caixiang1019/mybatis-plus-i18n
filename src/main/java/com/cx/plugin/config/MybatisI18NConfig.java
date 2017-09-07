@@ -95,7 +95,7 @@ public class MybatisI18NConfig {
 
         Interceptor sqlExplainInterceptor = new SqlExplainInterceptor();
         Properties sqlExplainInterceptorProps = new Properties();
-        sqlExplainInterceptorProps.setProperty("stopProceed", "true");
+        sqlExplainInterceptorProps.setProperty("stopProceed", "false");
         sqlExplainInterceptor.setProperties(sqlExplainInterceptorProps);
         interceptors.add(sqlExplainInterceptor);
         I18nSqlProcessInterceptor i18NSqlProcessInterceptor = new I18nSqlProcessInterceptor();

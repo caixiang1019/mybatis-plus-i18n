@@ -165,7 +165,7 @@ public class TestController {
         ArtCompany artCompany1 = new ArtCompany();
         artCompany1.setAge(34);
         artCompany1.setName("蔡翔");
-        return artCompanyService.update(artCompany, new EntityWrapper<>(artCompany1));
+        return artCompanyService.update(artCompany, null);
     }
 
     @RequestMapping(value = "update3", method = RequestMethod.PUT)
