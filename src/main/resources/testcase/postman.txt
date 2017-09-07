@@ -1,0 +1,170 @@
+1.POST:localhost:8080/test/add
+{	"name": "蔡翔",
+    "code": "代号133",
+    "country":"中国",
+    "phone":"13453455345",
+	"address":"大大是的撒发生发范德萨范德萨",
+	"age":34,
+    "i18n": {
+        "name": [
+            {
+                "language": "en_us",
+                "value": "Mathys"
+            },
+            {
+                "language": "zh_cn",
+                "value": "蔡翔"
+            }
+        ],
+        "code": [
+            {
+                "language": "en_us",
+                "value": "CODE133"
+            },
+            {
+                "language": "zh_cn",
+                "value": "代号133"
+            }
+        ],
+        "country": [
+            {
+                "language": "ffeee",
+                "value": "fffeeey"
+            },
+            {
+                "language": "zh_cn",
+                "value": "中国"
+            }
+        ]
+    }
+}
+
+2.POST：localhost:8080/test/addArtDep
+
+{
+    "depName": "行政部",
+    "depCode": "XZB",
+    "depCountry":"中国",
+    "phone":"1345224435",
+	"address":"金沙江路1977",
+	"age":24,
+    "i18n": {
+        "depName": [
+            {
+                "language": "en_us",
+                "value": "Mathys"
+            },
+            {
+                "language": "zh_cn",
+                "value": "行政部"
+            }
+        ],
+        "depCode": [
+            {
+                "language": "en_us",
+                "value": "XZB"
+            },
+            {
+                "language": "zh_cn",
+                "value": "XZB"
+            }
+        ],
+        "depCountry":[
+        	{
+        		"language":"en_us",
+        		"value":"China"
+        	}
+        ]
+    }
+}
+
+
+
+3.SELECT GET:http://localhost:8080/test/selectById?id=902506540586233856
+			:http://localhost:8080/test/selectById?id=904962428601303040
+			:http://localhost:8080/test/selectList?age=24
+Accept-Language : en-us,en;q=0.5  /  zh-CN,fr-FR;q=0.5
+
+4.UPDATE PUT:localhost:8080/test/updateArtDep2
+{
+	"id":904961665464467456,
+    "depName": "更改蔡翔113",
+    "depCode": "更待代号133232",
+    "depCountry": "更改国3家",
+    "phone":"6645343",
+	"address":"更改金沙江路14443号202室22",
+	"age":349,
+    "i18n": {
+        "depName": [
+            {
+                "language": "zh_cn",
+                "value": "更改蔡翔"
+            },
+            {
+                "language": "fr",
+                "value": "SFSDSSDFDF"
+            }
+        ],
+        "depCode": [
+            {
+                "language": "en_us",
+                "value": "CODE133"
+            },
+            {
+                "language": "zh_cn",
+                "value": "更待代号133"
+            },
+            {
+            	"language": "eeee",
+            	"value":"eerrrerrer"
+            }
+        ],
+        "depCountry":[
+        	{	"language":"en_us",
+        		"value":"country_us"
+
+        	}
+        ]
+    }
+}
+
+5.UPDATE PUT:localhost:8080/test/update2
+{
+    "name": "更改蔡翔",
+    "code": "更待代号133",
+
+    "phone":"66453455345",
+	"address":"更改金沙江路1444号202室",
+	"age":34,
+	"isDeleted":false,
+    "i18n": {
+        "name": [
+            {
+                "language": "zh_cn",
+                "value": "更改蔡翔"
+            },
+            {
+                "language": "fr",
+                "value": "SFSDSSDFDF"
+            }
+        ],
+        "code": [
+            {
+                "language": "en_us",
+                "value": "CODE133"
+            },
+            {
+                "language": "zh_cn",
+                "value": "更待代号133"
+            },
+            {
+            	"language": "eeee",
+            	"value":"eerrrerrer"
+            }
+        ]
+    }
+}
+
+6.LOGIC_DELETE DELETE:localhost:8080/test/logicDelete?id=904961665464467456
+
+7.PHYSICAL_DELETE 功能存在,暂时保留
