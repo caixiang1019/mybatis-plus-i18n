@@ -30,4 +30,5 @@ public class ArtCompany extends BaseI18nDomain {
     private Integer age;
     @TableField(value = "is_deleted", validate = FieldStrategy.NOT_NULL)
     private Boolean isDeleted;
+
 }

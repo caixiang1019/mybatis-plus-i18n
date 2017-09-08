@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import javax.sql.DataSource;
 import java.util.ArrayList;
@@ -73,7 +74,7 @@ public class MybatisI18NConfig {
         mybatisConfiguration.setDefaultScriptingLanguage(MybatisXMLLanguageDriver.class);
         mybatisSqlSessionFactoryBean.setConfiguration(mybatisConfiguration);
         mybatisSqlSessionFactoryBean.setTypeAliasesPackage("com.helioscloud.atlantis.plugin.domain");
-        //mybatisSqlSessionFactoryBean.setMapperLocations(new PathMatchingResourcePatternResolver().getResources("com/helioscloud/atlantis/plugin/persistence/mapper/*Mapper.xml"));
+        mybatisSqlSessionFactoryBean.setMapperLocations(new PathMatchingResourcePatternResolver().getResources("com/cx/plugin/persistence/mapper/*Mapper.xml"));
         return mybatisSqlSessionFactoryBean;
     }
 

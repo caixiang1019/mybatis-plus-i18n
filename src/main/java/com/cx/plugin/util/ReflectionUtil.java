@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Created by caixiang on 2017/8/15.
@@ -246,4 +248,42 @@ public class ReflectionUtil {
         }
         return list;
     }
+
+    /**
+     * 获取指定包下的所有类的属性的get/set方法,支持
+     *
+     * @param packagePath
+     * @param methodPrefixEnum
+     * @param clazz
+     * @return
+     */
+    public static Map<String, Map<String, Method>> getMethodsFromClass(String packagePath, MethodPrefixEnum methodPrefixEnum, Class clazz) {
+        List<Class<?>> classList = PackageScannerUtil.getClassFromSuperClass(packagePath, clazz);
+        Map<String, Map<String, Method>> map = new HashMap<>();
+        classList.forEach(clz -> {
+            List<Method> setMethodList = Arrays.stream(clz.getDeclaredFields()).map(f -> {
+                Method method = null;
+                try {
+                    switch (methodPrefixEnum) {
+                        case SET:
+                            method = clz.getMethod(ReflectionUtil.methodNameCaptalize(methodPrefixEnum, f.getName()), f.getType());
+                            break;
+                        case GET:
+                            method = clz.getMethod(ReflectionUtil.methodNameCaptalize(methodPrefixEnum, f.getName()));
+                            break;
+                        default:
+                            throw new ReflectException("Only support get or set method!");
+                    }
+
+                } catch (NoSuchMethodException e) {
+                    e.printStackTrace();
+                }
+                return method;
+            }).filter(m -> m != null).collect(Collectors.toList());
+            Map<String, Method> methodMap = setMethodList.stream().collect(Collectors.toMap(Method::getName, Function.identity(), (k1, k2) -> k2));
+            map.put(clz.getName(), methodMap);
+        });
+        return map;
+    }
+
 }

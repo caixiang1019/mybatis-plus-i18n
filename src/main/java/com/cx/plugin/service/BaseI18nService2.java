@@ -10,8 +10,10 @@ import com.cx.plugin.util.ReflectionUtil;
 import com.cx.plugin.util.SqlExecuteUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import javax.sql.DataSource;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -31,10 +33,22 @@ public class BaseI18nService2 {
 
     private static final String ID_CONSTANT = "id";
 
+    private Environment env;
     private DataSource dataSource;
 
-    public BaseI18nService2(DataSource dataSource) {
+    public static Map<String, Map<String, Method>> i18nDomainSetMethodCache = new HashMap<>();
+
+    public BaseI18nService2(Environment env, DataSource dataSource) {
+        this.env = env;
         this.dataSource = dataSource;
+    }
+
+    @PostConstruct
+    public void initI18nDomainMethod() {
+        if (i18nDomainSetMethodCache.size() == 0) {
+            //方法缓存
+            i18nDomainSetMethodCache = ReflectionUtil.getMethodsFromClass(env.getProperty("i18n.domain.package.path"), MethodPrefixEnum.SET, BaseI18nDomain.class);
+        }
     }
 
     /**
@@ -137,7 +151,7 @@ public class BaseI18nService2 {
             while (resultSet.next()) {
                 Object result = clazz.newInstance();
                 i18nFieldNameList.forEach(t -> {
-                    Method setMethod = Arrays.stream(clazz.getDeclaredMethods()).filter(m -> m.getName().contains(ReflectionUtil.methodNameCaptalize(MethodPrefixEnum.SET, t))).collect(Collectors.toList()).get(0);
+                    Method setMethod = i18nDomainSetMethodCache.get(clazz).get(ReflectionUtil.methodNameCaptalize(MethodPrefixEnum.SET, t));
                     try {
                         setMethod.invoke(result, resultSet.getObject(t));
                     } catch (IllegalAccessException e) {

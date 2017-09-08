@@ -2,6 +2,7 @@ package com.cx.plugin.util;
 
 import com.baomidou.mybatisplus.entity.TableFieldInfo;
 import com.cx.plugin.enums.MethodPrefixEnum;
+import com.cx.plugin.service.BaseI18nService2;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.util.CollectionUtils;
 
@@ -11,8 +12,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by caixiang on 2017/9/6.
@@ -148,7 +151,7 @@ public class SqlExecuteUtil {
             while (resultSet.next()) {
                 Object result = domainClass.newInstance();
                 tableFieldInfoList.forEach(t -> {
-                    Method setMethod = Arrays.stream(domainClass.getDeclaredMethods()).filter(m -> m.getName().contains(ReflectionUtil.methodNameCaptalize(MethodPrefixEnum.SET, t.getProperty()))).collect(Collectors.toList()).get(0);
+                    Method setMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass).get(ReflectionUtil.methodNameCaptalize(MethodPrefixEnum.SET,t.getProperty()));
                     try {
                         setMethod.invoke(result, resultSet.getObject(t.getProperty()));
                     } catch (IllegalAccessException e) {
@@ -160,7 +163,7 @@ public class SqlExecuteUtil {
                     }
 
                 });
-                Method idSetMethod = Arrays.stream(domainClass.getDeclaredMethods()).filter(m -> m.getName().contains("setId")).collect(Collectors.toList()).get(0);
+                Method idSetMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass).get(MethodPrefixEnum.SET + "Id");
                 idSetMethod.invoke(result, resultSet.getLong("id"));
                 objectList.add(result);
             }

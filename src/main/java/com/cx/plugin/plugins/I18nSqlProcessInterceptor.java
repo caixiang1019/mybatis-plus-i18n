@@ -12,6 +12,7 @@ import com.cx.plugin.domain.BaseI18nDomain;
 import com.cx.plugin.domain.BaseI18nMetaData;
 import com.cx.plugin.enums.MethodPrefixEnum;
 import com.cx.plugin.exception.SqlProcessInterceptorException;
+import com.cx.plugin.service.BaseI18nService2;
 import com.cx.plugin.util.ReflectionUtil;
 import com.cx.plugin.util.SqlExecuteUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -47,9 +48,6 @@ public class I18nSqlProcessInterceptor implements Interceptor {
     private static final String LANGUAGE_CONSTANT = "language";
     private static final String VALUE_CONSTANT = "value";
     private static final String DELIMITER_DOT = ".";
-    //i18n的标记,暂时给出,日后扩展可以用
-    private boolean i18nFlag = false;
-
 
     private TableInfo tableInfo;
     private String baseMethodStr;
@@ -61,14 +59,15 @@ public class I18nSqlProcessInterceptor implements Interceptor {
     //这个mappedStatement关联的Domain类Class
     private Class domainClass;
     private Connection connection;
-    private final static EnumMap supportedOperationMap = new EnumMap<SqlCommandType, String[]>(SqlCommandType.class);
+    private final static EnumMap<SqlCommandType, String[]> supportedOperationMap = new EnumMap<>(SqlCommandType.class);
 
-    //支持的mp的method集合
     static {
+        //支持的操作缓存
         supportedOperationMap.put(SqlCommandType.INSERT, new String[]{SqlMethod.INSERT_ONE.getMethod(), SqlMethod.INSERT_ONE_ALL_COLUMN.getMethod()});
         supportedOperationMap.put(SqlCommandType.UPDATE, new String[]{SqlMethod.UPDATE.getMethod(), SqlMethod.UPDATE_ALL_COLUMN_BY_ID.getMethod(), SqlMethod.UPDATE_BY_ID.getMethod()});
         supportedOperationMap.put(SqlCommandType.DELETE, new String[]{SqlMethod.DELETE.getMethod(), SqlMethod.DELETE_BY_ID.getMethod(), SqlMethod.DELETE_BY_MAP.getMethod()});
         supportedOperationMap.put(SqlCommandType.SELECT, new String[]{SqlMethod.SELECT_BY_ID.getMethod(), SqlMethod.SELECT_LIST.getMethod(), SqlMethod.SELECT_ONE.getMethod(), SqlMethod.SELECT_MAPS.getMethod()});
+
     }
 
     @Override
@@ -99,7 +98,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                     //updateById,updateAllColumnsById传入的entity必须有id,不然无法确定改哪个
                     if (baseTableId != null) {
                         String sqlOrigin = "DELETE FROM ${tableName}_i18n WHERE id = ?;";
-                        Map sqlParamMap = new HashMap<String, String>();
+                        Map<String, String> sqlParamMap = new HashMap<>();
                         sqlParamMap.put("tableName", baseTableName);
                         String deleteSql = StrSubstitutor.replace(sqlOrigin, sqlParamMap);
                         //1.delete
@@ -116,10 +115,10 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                     HashMap map = (HashMap) boundSql.getParameterObject();
                     Object entityWrapper = map.get("ew");
                     //update 不带where 直接返回原逻辑
-                    if(entityWrapper == null){
+                    if (entityWrapper == null) {
                         return invocation.proceed();
                     }
-                    Object entity = ((EntityWrapper)entityWrapper).getEntity();
+                    Object entity = ((EntityWrapper) entityWrapper).getEntity();
                     List<ParameterMapping> parameterMappingList = boundSql.getParameterMappings();
                     List<String> patametersStrList = parameterMappingList.stream().map(s -> s.getProperty()).collect(Collectors.toList());
                     //只取ew.entity.XXX
@@ -162,17 +161,17 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                     if (map.containsKey("ew")) {
                         //delete 不带where 直接返回原逻辑
                         Object entityWrapper = map.get("ew");
-                        if(entityWrapper == null) {
+                        if (entityWrapper == null) {
                             return invocation.proceed();
                         }
-                        Object entity = ((EntityWrapper)entityWrapper).getEntity();
+                        Object entity = ((EntityWrapper) entityWrapper).getEntity();
                         //禁止全表delete! 等价于entity!=null
-                        List<String> patametersStrList = parameterMappingList.stream().map(s -> s.getProperty().substring(s.getProperty().lastIndexOf(DELIMITER_DOT) + 1)).collect(Collectors.toList());
-                        valueList = patametersStrList.stream().map(p -> ReflectionUtil.getMethodValue(entity, p)).collect(Collectors.toList());
+                        List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty().substring(s.getProperty().lastIndexOf(DELIMITER_DOT) + 1)).collect(Collectors.toList());
+                        valueList = parametersStrList.stream().map(p -> ReflectionUtil.getMethodValue(entity, p)).collect(Collectors.toList());
                     } else if (map.containsKey("cm")) {
                         HashMap<String, Object> entity = (HashMap) map.get("cm");
-                        List<String> patametersStrList = parameterMappingList.stream().map(s -> s.getProperty().substring(s.getProperty().indexOf("[") + 1, s.getProperty().indexOf("]"))).collect(Collectors.toList());
-                        valueList = patametersStrList.stream().map(p -> entity.get(p)).collect(Collectors.toList());
+                        List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty().substring(s.getProperty().indexOf("[") + 1, s.getProperty().indexOf("]"))).collect(Collectors.toList());
+                        valueList = parametersStrList.stream().map(p -> entity.get(p)).collect(Collectors.toList());
 
                     }
                     String deleteSql = getSqlFromBaseSql(boundSql.getSql(), SqlCommandType.DELETE, null, null, null);
@@ -255,7 +254,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
         StringBuilder sb = new StringBuilder();
         switch (sqlCommandType) {
             case SELECT: {
-                if (sqlWhere == null) {
+                if (StringUtils.isEmpty(sqlWhere)) {
                     for (TableFieldInfo tableFieldInfo : tableFieldInfoList) {
                         if (i18nFieldList.contains(tableFieldInfo.getProperty())) {
                             baseSql = baseSql.replaceAll(tableFieldInfo.getColumn(), "i18n." + tableFieldInfo.getColumn());
@@ -322,7 +321,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
             String sqlOrigin = "INSERT INTO ${tableName}_i18n(id,language${fieldList}) VALUES(?,?${valueList});";
             StringBuilder fieldListSb = new StringBuilder();
             StringBuilder valueListSb = new StringBuilder();
-            Map sqlParamMap = new HashMap<String, String>();
+            Map<String, String> sqlParamMap = new HashMap<>();
             sqlParamMap.put("tableName", baseTableName);
             sqlParamMap.put("fieldList", "");
             sqlParamMap.put("valueList", "");
@@ -386,11 +385,11 @@ public class I18nSqlProcessInterceptor implements Interceptor {
         map.forEach((id, subMap) -> {
             try {
                 Object result = domainClass.newInstance();
-                Method idSetMethod = Arrays.stream(domainClass.getDeclaredMethods()).filter(m -> m.getName().contains("setId")).collect(Collectors.toList()).get(0);
+                Method idSetMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass).get(MethodPrefixEnum.SET + "Id");
                 idSetMethod.invoke(result, id);
 
                 subMap.forEach((fieldName, filedValue) -> {
-                    Method setMethod = Arrays.stream(domainClass.getDeclaredMethods()).filter(m -> m.getName().contains(ReflectionUtil.methodNameCaptalize(MethodPrefixEnum.SET, fieldName))).collect(Collectors.toList()).get(0);
+                    Method setMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass).get(ReflectionUtil.methodNameCaptalize(MethodPrefixEnum.SET, fieldName));
                     try {
                         setMethod.invoke(result, filedValue);
                     } catch (IllegalAccessException e) {
@@ -460,19 +459,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
 
     @Override
     public void setProperties(Properties properties) {
-        String i18nFlag = properties.getProperty("i18nFlag");
-        if (StringUtils.isNotEmpty(i18nFlag)) {
-            this.i18nFlag = Boolean.valueOf(i18nFlag);
-        }
+        //do not need properties temporarily
     }
-
-    public boolean isI18nFlag() {
-        return i18nFlag;
-    }
-
-    public void setI18nFlag(boolean i18nFlag) {
-        this.i18nFlag = i18nFlag;
-    }
-
 
 }
