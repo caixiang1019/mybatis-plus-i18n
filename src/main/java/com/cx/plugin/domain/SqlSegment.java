@@ -11,7 +11,7 @@ import java.io.Serializable;
  */
 @Data
 @Builder
-public class SqlSegment implements Serializable{
+public class SqlSegment implements Serializable {
     private String sqlHeader;
     private String fieldsStr;
     private String middleStr;

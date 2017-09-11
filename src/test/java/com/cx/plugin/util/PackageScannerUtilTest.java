@@ -14,7 +14,7 @@ import static com.cx.plugin.util.PackageScannerUtil.*;
 public class PackageScannerUtilTest {
 
     @Test
-    public void testGetClassFromSuperClass(){
+    public void testGetClassFromSuperClass() {
         getClassFromSuperClass("com.cx.plugin.domain", BaseI18nMetaData.class);
         getClassWithAnnotation("com.cx.plugin.domain", TableName.class);
         getClassImplementClass("com.cx.plugin.domain", Serializable.class);

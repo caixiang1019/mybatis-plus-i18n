@@ -252,9 +252,9 @@ public class ReflectionUtil {
     /**
      * 获取指定包下父类为supClazz的所有类的属性的get/set(二选一)方法,组装成方便使用的map
      *
-     * @param packagePath       不能为null
-     * @param methodPrefixEnum  需要初始化方法的前缀,当前只支持setXXX,getXXX,并且set方法只支持一个为field类型的参数
-     * @param supClazz          父类Class
+     * @param packagePath      不能为null
+     * @param methodPrefixEnum 需要初始化方法的前缀,当前只支持setXXX,getXXX,并且set方法只支持一个为field类型的参数
+     * @param supClazz         父类Class
      * @return
      */
     public static Map<String, Map<String, Method>> getMethodsFromClass(String packagePath, MethodPrefixEnum methodPrefixEnum, Class supClazz) {
@@ -267,7 +267,7 @@ public class ReflectionUtil {
         }
         Map<String, Map<String, Method>> map = new HashMap<>();
         classList.forEach(clz -> {
-            List<Method> setMethodList = Arrays.stream(clz.getDeclaredFields()).map(f -> {
+            List<Method> methodList = Arrays.stream(clz.getDeclaredFields()).map(f -> {
                 Method method = null;
                 try {
                     switch (methodPrefixEnum) {
@@ -286,7 +286,7 @@ public class ReflectionUtil {
                 }
                 return method;
             }).filter(m -> m != null).collect(Collectors.toList());
-            Map<String, Method> methodMap = setMethodList.stream().collect(Collectors.toMap(Method::getName, Function.identity(), (k1, k2) -> k2));
+            Map<String, Method> methodMap = methodList.stream().collect(Collectors.toMap(Method::getName, Function.identity(), (k1, k2) -> k2));
             map.put(clz.getName(), methodMap);
         });
         return map;

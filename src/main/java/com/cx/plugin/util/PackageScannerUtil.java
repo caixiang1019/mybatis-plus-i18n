@@ -16,8 +16,9 @@ public class PackageScannerUtil {
 
     /**
      * 获取packageName下继承superType的Class List
-     * @param packageName   包绝对路径名称,支持以"."或者"/"分割
-     * @param superType     父类Class
+     *
+     * @param packageName 包绝对路径名称,支持以"."或者"/"分割
+     * @param superType   父类Class
      * @return
      */
     public static List<Class<?>> getClassFromSuperClass(String packageName, Class<?> superType) {
@@ -33,8 +34,9 @@ public class PackageScannerUtil {
 
     /**
      * 获取packageName下被annotationType注解的Class List
-     * @param packageName       包绝对路径名称,支持以"."或者"/"分割
-     * @param annotationType    注解类Class
+     *
+     * @param packageName    包绝对路径名称,支持以"."或者"/"分割
+     * @param annotationType 注解类Class
      * @return
      */
     public static List<Class<?>> getClassWithAnnotation(String packageName, Class<? extends Annotation> annotationType) {
@@ -50,8 +52,9 @@ public class PackageScannerUtil {
 
     /**
      * 获取packageName下实现interfaceType接口的Class List
-     * @param packageName       包绝对路径名称,支持以"."或者"/"分割
-     * @param interfaceType     接口类Class
+     *
+     * @param packageName   包绝对路径名称,支持以"."或者"/"分割
+     * @param interfaceType 接口类Class
      * @return
      */
     public static List<Class<?>> getClassImplementClass(String packageName, Class<?> interfaceType) {
