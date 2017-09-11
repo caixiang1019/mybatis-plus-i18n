@@ -31,7 +31,7 @@ public class ArtDep extends BaseI18nDomain {
     private String phone;
     private String address;
     private Integer age;
-    @TableField(value = "is_deleted", validate = FieldStrategy.NOT_NULL)
+    @TableField(value = "is_deleted", strategy = FieldStrategy.NOT_NULL)
     private Boolean isDeleted;
 
 }

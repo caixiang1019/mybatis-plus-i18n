@@ -134,6 +134,12 @@ public class TestController {
         return artCompanyService.insert(artCompany);
     }
 
+    @RequestMapping(value = "addAll", method = RequestMethod.POST)
+    public Boolean addAllArtCompany(@RequestBody ArtCompany artCompany) {
+        artCompany.setIsDeleted(false);
+        return artCompanyService.insertAllColumn(artCompany);
+    }
+
     @RequestMapping(value = "addArtDep", method = RequestMethod.POST)
     public Boolean addArtDep(@RequestBody ArtDep artDep) {
         artDep.setIsDeleted(false);
