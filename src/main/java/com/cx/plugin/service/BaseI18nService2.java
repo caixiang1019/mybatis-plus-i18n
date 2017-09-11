@@ -47,7 +47,7 @@ public class BaseI18nService2 {
     public void initI18nDomainMethod() {
         if (i18nDomainSetMethodCache.size() == 0) {
             //方法缓存
-            i18nDomainSetMethodCache = ReflectionUtil.getMethodsFromClass(env.getProperty("i18n.domain.package.path"), MethodPrefixEnum.SET, BaseI18nDomain.class);
+            i18nDomainSetMethodCache = ReflectionUtil.getMethodsFromClass(env.getProperty("i18n.domain.package"), MethodPrefixEnum.SET, BaseI18nDomain.class);
         }
     }
 
@@ -151,7 +151,7 @@ public class BaseI18nService2 {
             while (resultSet.next()) {
                 Object result = clazz.newInstance();
                 i18nFieldNameList.forEach(t -> {
-                    Method setMethod = i18nDomainSetMethodCache.get(clazz).get(ReflectionUtil.methodNameCaptalize(MethodPrefixEnum.SET, t));
+                    Method setMethod = i18nDomainSetMethodCache.get(clazz.getName()).get(ReflectionUtil.methodNameCapitalize(MethodPrefixEnum.SET, t));
                     try {
                         setMethod.invoke(result, resultSet.getObject(t));
                     } catch (IllegalAccessException e) {

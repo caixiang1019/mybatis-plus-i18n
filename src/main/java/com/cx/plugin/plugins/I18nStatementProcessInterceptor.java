@@ -99,7 +99,7 @@ public class I18nStatementProcessInterceptor implements Interceptor {
     private void processI18nParameterField(Object instance, String fieldStr, Object fieldValue) throws Throwable {
         Method[] methods = instance.getClass().getDeclaredMethods();
         for (Method method : methods) {
-            if (method.getName().contains(ReflectionUtil.methodNameCaptalize(MethodPrefixEnum.SET, fieldStr))) {
+            if (method.getName().contains(ReflectionUtil.methodNameCapitalize(MethodPrefixEnum.SET, fieldStr))) {
                 method.invoke(instance, fieldValue);
             }
         }

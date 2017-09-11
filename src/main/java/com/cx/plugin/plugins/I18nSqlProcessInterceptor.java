@@ -67,7 +67,6 @@ public class I18nSqlProcessInterceptor implements Interceptor {
         supportedOperationMap.put(SqlCommandType.UPDATE, new String[]{SqlMethod.UPDATE.getMethod(), SqlMethod.UPDATE_ALL_COLUMN_BY_ID.getMethod(), SqlMethod.UPDATE_BY_ID.getMethod()});
         supportedOperationMap.put(SqlCommandType.DELETE, new String[]{SqlMethod.DELETE.getMethod(), SqlMethod.DELETE_BY_ID.getMethod(), SqlMethod.DELETE_BY_MAP.getMethod()});
         supportedOperationMap.put(SqlCommandType.SELECT, new String[]{SqlMethod.SELECT_BY_ID.getMethod(), SqlMethod.SELECT_LIST.getMethod(), SqlMethod.SELECT_ONE.getMethod(), SqlMethod.SELECT_MAPS.getMethod()});
-
     }
 
     @Override
@@ -120,9 +119,9 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                     }
                     Object entity = ((EntityWrapper) entityWrapper).getEntity();
                     List<ParameterMapping> parameterMappingList = boundSql.getParameterMappings();
-                    List<String> patametersStrList = parameterMappingList.stream().map(s -> s.getProperty()).collect(Collectors.toList());
+                    List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty()).collect(Collectors.toList());
                     //只取ew.entity.XXX
-                    List<Object> valueList = patametersStrList.stream().filter(s -> s.contains("ew.entity"))
+                    List<Object> valueList = parametersStrList.stream().filter(s -> s.contains("ew.entity"))
                             .map(s -> s.substring(s.lastIndexOf(DELIMITER_DOT) + 1)).collect(Collectors.toList()).stream()
                             .map(p -> ReflectionUtil.getMethodValue(entity, p)).collect(Collectors.toList());
                     // 取 where(包含) 之后的str
@@ -264,8 +263,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                     }
                     //id特殊处理
                     baseSql = baseSql.replaceAll("id", "base.id");
-                    StringBuilder selectSb = new StringBuilder();
-                    selectSb.append(baseSql.substring(0, baseSql.indexOf("WHERE"))).append("base INNER JOIN ").append(tableInfo.getTableName())
+                    sb.append(baseSql.substring(0, baseSql.indexOf("WHERE"))).append("base INNER JOIN ").append(tableInfo.getTableName())
                             .append("_i18n i18n ON base.id = i18n.id ").append(baseSql.substring(baseSql.indexOf("WHERE"))).append(" AND i18n.language = ?;");
                 } else {
                     String sqlHeader = baseSql.substring(0, baseSql.indexOf("FROM"));
@@ -385,11 +383,11 @@ public class I18nSqlProcessInterceptor implements Interceptor {
         map.forEach((id, subMap) -> {
             try {
                 Object result = domainClass.newInstance();
-                Method idSetMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass).get(MethodPrefixEnum.SET + "Id");
+                Method idSetMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass.getName()).get(MethodPrefixEnum.SET.getPrefix() + "Id");
                 idSetMethod.invoke(result, id);
 
                 subMap.forEach((fieldName, filedValue) -> {
-                    Method setMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass).get(ReflectionUtil.methodNameCaptalize(MethodPrefixEnum.SET, fieldName));
+                    Method setMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass.getName()).get(ReflectionUtil.methodNameCapitalize(MethodPrefixEnum.SET, fieldName));
                     try {
                         setMethod.invoke(result, filedValue);
                     } catch (IllegalAccessException e) {
@@ -419,7 +417,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
      * @return
      */
     private Boolean methodSupported(SqlCommandType sqlCommandType, String methodStr) {
-        String[] methodArray = (String[]) supportedOperationMap.get(sqlCommandType);
+        String[] methodArray = supportedOperationMap.get(sqlCommandType);
         if (methodArray == null) {
             return false;
         }

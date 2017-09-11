@@ -81,7 +81,7 @@
 
 
 3.SELECT GET:http://localhost:8080/test/selectById?id=902506540586233856
-			:http://localhost:8080/test/selectById?id=904962428601303040
+			:http://localhost:8080/test/selectOne?id=904962428601303040
 			:http://localhost:8080/test/selectList?age=24
 Accept-Language : en-us,en;q=0.5  /  zh-CN,fr-FR;q=0.5
 
@@ -168,3 +168,15 @@ Accept-Language : en-us,en;q=0.5  /  zh-CN,fr-FR;q=0.5
 6.LOGIC_DELETE DELETE:localhost:8080/test/logicDelete?id=904961665464467456
 
 7.PHYSICAL_DELETE 功能存在,暂时保留
+
+8.GET_I18N_INFO GET:http://localhost:8080/test/getI18nInfo?id=907071008712396800
+Headers:
+Accept-Language : en-us,en;q=0.5
+
+9.CONVERT_TO_I18N_DOMAIN GET:http://localhost:8080/test/convertOne?id=907071337038319616
+Headers:
+Accept-Language : en-us,en;q=0.5
+
+10.CONVERT_TO_I18N_DOMAIN_LIST GET:http://localhost:8080/test/convertList?id=907071337038319616&id2=907071507247370240
+Headers:
+Accept-Language : en-us,en;q=0.5

@@ -121,7 +121,7 @@ public abstract class BaseI18nService<M extends BaseMapper<T>, N extends IServic
         try {
             Method[] methods = sInstance.getClass().getDeclaredMethods();
             for (Method method : methods) {
-                if (method.getName().contains(ReflectionUtil.methodNameCaptalize(MethodPrefixEnum.SET, fieldStr))) {
+                if (method.getName().contains(ReflectionUtil.methodNameCapitalize(MethodPrefixEnum.SET, fieldStr))) {
                     method.invoke(sInstance, fieldValue);
                 }
             }

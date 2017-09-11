@@ -33,7 +33,7 @@ public class SqlExecuteUtil {
     public static List<Long> executeForIdsWithParameters(Connection connection, List<Object> valueList, String sql) {
         List<Long> idList = new ArrayList<>();
         if (CollectionUtils.isEmpty(valueList)) {
-            return excuteForIdsWithoutParameters(connection, sql);
+            return executeForIdsWithoutParameters(connection, sql);
         }
         try (PreparedStatement psm = connection.prepareStatement(sql)) {
             for (int i = 0; i < valueList.size(); i++) {
@@ -58,7 +58,7 @@ public class SqlExecuteUtil {
      * @param sql
      * @return
      */
-    public static List<Long> excuteForIdsWithoutParameters(Connection connection, String sql) {
+    public static List<Long> executeForIdsWithoutParameters(Connection connection, String sql) {
         List<Long> idList = new ArrayList<>();
         try (PreparedStatement psm = connection.prepareStatement(sql)) {
             ResultSet resultSet = psm.executeQuery();
@@ -151,7 +151,7 @@ public class SqlExecuteUtil {
             while (resultSet.next()) {
                 Object result = domainClass.newInstance();
                 tableFieldInfoList.forEach(t -> {
-                    Method setMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass).get(ReflectionUtil.methodNameCaptalize(MethodPrefixEnum.SET,t.getProperty()));
+                    Method setMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass.getName()).get(ReflectionUtil.methodNameCapitalize(MethodPrefixEnum.SET, t.getProperty()));
                     try {
                         setMethod.invoke(result, resultSet.getObject(t.getProperty()));
                     } catch (IllegalAccessException e) {
@@ -163,7 +163,7 @@ public class SqlExecuteUtil {
                     }
 
                 });
-                Method idSetMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass).get(MethodPrefixEnum.SET + "Id");
+                Method idSetMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass.getName()).get(MethodPrefixEnum.SET.getPrefix() + "Id");
                 idSetMethod.invoke(result, resultSet.getLong("id"));
                 objectList.add(result);
             }

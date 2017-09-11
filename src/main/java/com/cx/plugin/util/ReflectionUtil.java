@@ -40,7 +40,7 @@ public class ReflectionUtil {
      * @param str              属性字符串内容
      * @return
      */
-    public static String methodNameCaptalize(MethodPrefixEnum methodPrefixEnum, final String str) {
+    public static String methodNameCapitalize(MethodPrefixEnum methodPrefixEnum, final String str) {
         return StringUtils.concatCapitalize(methodPrefixEnum.getPrefix(), str);
     }
 
@@ -250,15 +250,21 @@ public class ReflectionUtil {
     }
 
     /**
-     * 获取指定包下的所有类的属性的get/set方法,支持
+     * 获取指定包下父类为supClazz的所有类的属性的get/set(二选一)方法,组装成方便使用的map
      *
-     * @param packagePath
-     * @param methodPrefixEnum
-     * @param clazz
+     * @param packagePath       不能为null
+     * @param methodPrefixEnum  需要初始化方法的前缀,当前只支持setXXX,getXXX,并且set方法只支持一个为field类型的参数
+     * @param supClazz          父类Class
      * @return
      */
-    public static Map<String, Map<String, Method>> getMethodsFromClass(String packagePath, MethodPrefixEnum methodPrefixEnum, Class clazz) {
-        List<Class<?>> classList = PackageScannerUtil.getClassFromSuperClass(packagePath, clazz);
+    public static Map<String, Map<String, Method>> getMethodsFromClass(String packagePath, MethodPrefixEnum methodPrefixEnum, Class supClazz) {
+        if (StringUtils.isEmpty(packagePath)) {
+            throw new ReflectException("Can not find domain package path which needs to be initialized!");
+        }
+        List<Class<?>> classList = PackageScannerUtil.getClassFromSuperClass(packagePath, supClazz);
+        if (CollectionUtils.isEmpty(classList)) {
+            throw new ReflectException("Can not find specific class which needs to be initialized!");
+        }
         Map<String, Map<String, Method>> map = new HashMap<>();
         classList.forEach(clz -> {
             List<Method> setMethodList = Arrays.stream(clz.getDeclaredFields()).map(f -> {
@@ -266,10 +272,10 @@ public class ReflectionUtil {
                 try {
                     switch (methodPrefixEnum) {
                         case SET:
-                            method = clz.getMethod(ReflectionUtil.methodNameCaptalize(methodPrefixEnum, f.getName()), f.getType());
+                            method = clz.getMethod(ReflectionUtil.methodNameCapitalize(methodPrefixEnum, f.getName()), f.getType());
                             break;
                         case GET:
-                            method = clz.getMethod(ReflectionUtil.methodNameCaptalize(methodPrefixEnum, f.getName()));
+                            method = clz.getMethod(ReflectionUtil.methodNameCapitalize(methodPrefixEnum, f.getName()));
                             break;
                         default:
                             throw new ReflectException("Only support get or set method!");

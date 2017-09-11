@@ -54,7 +54,7 @@ public class TestController {
         ArtDep artDep2 = new ArtDep();
         artDep2.setId(id);
         ArtDep artDep3 = new ArtDep();
-        artDep2.setId(id2);
+        artDep3.setId(id2);
         List<ArtDep> list = new ArrayList<>();
         list.add(artDep2);
         list.add(artDep3);
@@ -165,7 +165,7 @@ public class TestController {
         ArtCompany artCompany1 = new ArtCompany();
         artCompany1.setAge(34);
         artCompany1.setName("蔡翔");
-        return artCompanyService.update(artCompany, null);
+        return artCompanyService.update(artCompany, new EntityWrapper<>(artCompany1));
     }
 
     @RequestMapping(value = "update3", method = RequestMethod.PUT)
