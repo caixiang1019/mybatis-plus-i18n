@@ -5,10 +5,13 @@ import com.baomidou.mybatisplus.entity.TableInfo;
 import com.baomidou.mybatisplus.toolkit.TableInfoHelper;
 import com.cx.plugin.annotations.I18nField;
 import com.cx.plugin.domain.BaseI18nDomain;
-import com.cx.plugin.enums.MethodPrefixEnum;
+import com.cx.plugin.exception.SqlProcessInterceptorException;
 import com.cx.plugin.util.ReflectionUtil;
 import com.cx.plugin.util.SqlExecuteUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
+import org.apache.ibatis.reflection.Reflector;
+import org.apache.ibatis.reflection.invoker.Invoker;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -16,12 +19,13 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import javax.sql.DataSource;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 /**
@@ -36,7 +40,7 @@ public class BaseI18nService2 {
     private Environment env;
     private DataSource dataSource;
 
-    public static Map<String, Map<String, Method>> i18nDomainSetMethodCache = new HashMap<>();
+    public static ConcurrentMap<Class<?>, Reflector> i18nDomainMethodCache = new ConcurrentHashMap<>();
 
     public BaseI18nService2(Environment env, DataSource dataSource) {
         this.env = env;
@@ -45,9 +49,11 @@ public class BaseI18nService2 {
 
     @PostConstruct
     public void initI18nDomainMethod() {
-        if (i18nDomainSetMethodCache.size() == 0) {
+        if (StringUtils.isNotEmpty(env.getProperty("i18n.domain.package"))) {
             //方法缓存
-            i18nDomainSetMethodCache = ReflectionUtil.getMethodsFromClass(env.getProperty("i18n.domain.package"), MethodPrefixEnum.SET, BaseI18nDomain.class);
+            i18nDomainMethodCache = ReflectionUtil.getReflectorsFromPackage(env.getProperty("i18n.domain.package"), BaseI18nDomain.class);
+        } else {
+            log.info("I18n.domain.package is not configured,if not use i18n interceptor,that's ok!");
         }
     }
 
@@ -65,6 +71,9 @@ public class BaseI18nService2 {
         try (Connection connection = dataSource.getConnection()) {
             Class clazz = entity.getClass();
             TableInfo tableInfo = TableInfoHelper.getTableInfo(clazz);
+            if (tableInfo == null) {
+                throw new SqlProcessInterceptorException("未找到clazz对应tableInfo实例,只支持被mybatis-plus扫描到的domain类,请检查!");
+            }
             List<TableFieldInfo> tableFieldInfoList = tableInfo.getFieldList();
             Long baseTableId = (Long) ReflectionUtil.getMethodValue(entity, ID_CONSTANT);
             List<String> i18nFieldNameList = ReflectionUtil.getSpecificAnnotationFieldNameList(clazz, I18nField.class);
@@ -127,6 +136,9 @@ public class BaseI18nService2 {
         Map<String, T> resultMap = new HashMap<>();
         try (Connection connection = dataSource.getConnection()) {
             TableInfo tableInfo = TableInfoHelper.getTableInfo(clazz);
+            if (tableInfo == null) {
+                throw new SqlProcessInterceptorException("未找到clazz对应tableInfo实例,只支持被mybatis-plus扫描到的domain类,请检查!");
+            }
             List<TableFieldInfo> tableFieldInfoList = tableInfo.getFieldList();
             List<String> i18nFieldNameList = ReflectionUtil.getSpecificAnnotationFieldNameList(clazz, I18nField.class);
             StringBuilder sb = new StringBuilder("SELECT ");
@@ -151,9 +163,10 @@ public class BaseI18nService2 {
             while (resultSet.next()) {
                 Object result = clazz.newInstance();
                 i18nFieldNameList.forEach(t -> {
-                    Method setMethod = i18nDomainSetMethodCache.get(clazz.getName()).get(ReflectionUtil.methodNameCapitalize(MethodPrefixEnum.SET, t));
+                    Invoker setMethodInvoker = i18nDomainMethodCache.get(clazz).getSetInvoker(t);
                     try {
-                        setMethod.invoke(result, resultSet.getObject(t));
+                        Object[] params = {resultSet.getObject(t)};
+                        setMethodInvoker.invoke(result, params);
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
                     } catch (InvocationTargetException e) {

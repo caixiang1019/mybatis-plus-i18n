@@ -1,13 +1,12 @@
 package com.cx.plugin.util;
 
 import com.baomidou.mybatisplus.entity.TableFieldInfo;
-import com.cx.plugin.enums.MethodPrefixEnum;
 import com.cx.plugin.service.BaseI18nService2;
+import org.apache.ibatis.reflection.invoker.Invoker;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.util.CollectionUtils;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -151,9 +150,10 @@ public class SqlExecuteUtil {
             while (resultSet.next()) {
                 Object result = domainClass.newInstance();
                 tableFieldInfoList.forEach(t -> {
-                    Method setMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass.getName()).get(ReflectionUtil.methodNameCapitalize(MethodPrefixEnum.SET, t.getProperty()));
+                    Invoker setMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(t.getProperty());
                     try {
-                        setMethod.invoke(result, resultSet.getObject(t.getProperty()));
+                        Object[] params = {resultSet.getObject(t.getProperty())};
+                        setMethodInvoker.invoke(result, params);
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
                     } catch (InvocationTargetException e) {
@@ -163,8 +163,10 @@ public class SqlExecuteUtil {
                     }
 
                 });
-                Method idSetMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass.getName()).get(MethodPrefixEnum.SET.getPrefix() + "Id");
-                idSetMethod.invoke(result, resultSet.getLong("id"));
+                Invoker idSetMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker("id");
+                Object[] params = {resultSet.getLong("id")};
+
+                idSetMethodInvoker.invoke(result, params);
                 objectList.add(result);
             }
         } catch (SQLException e) {

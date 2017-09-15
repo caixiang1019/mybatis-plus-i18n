@@ -10,25 +10,25 @@ import com.baomidou.mybatisplus.toolkit.TableInfoHelper;
 import com.cx.plugin.annotations.I18nField;
 import com.cx.plugin.domain.BaseI18nDomain;
 import com.cx.plugin.domain.BaseI18nMetaData;
-import com.cx.plugin.enums.MethodPrefixEnum;
 import com.cx.plugin.exception.SqlProcessInterceptorException;
 import com.cx.plugin.service.BaseI18nService2;
 import com.cx.plugin.util.ReflectionUtil;
 import com.cx.plugin.util.SqlExecuteUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.text.StrSubstitutor;
+import org.apache.ibatis.binding.MapperMethod;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.mapping.SqlCommandType;
 import org.apache.ibatis.plugin.*;
+import org.apache.ibatis.reflection.invoker.Invoker;
 import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 import org.springframework.context.i18n.LocaleContextHolder;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -92,7 +92,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
             case UPDATE: {
                 BoundSql boundSql = ms.getSqlSource().getBoundSql(parameter);
                 if (Map.class.isAssignableFrom(boundSql.getParameterObject().getClass()) && Map.class.isAssignableFrom(parameterClass) && methodSupported(SqlCommandType.UPDATE, baseMethodStr)) {
-                    HashMap parameterMap = (HashMap) boundSql.getParameterObject();
+                    MapperMethod.ParamMap parameterMap = (MapperMethod.ParamMap) boundSql.getParameterObject();
                     if (parameterMap.containsKey("ew")) {
                         //update method
                         Object entityWrapper = parameterMap.get("ew");
@@ -143,10 +143,12 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                             List<String> i18nFieldNameList = ReflectionUtil.getSpecificAnnotationFieldNameList(parameterMap.get("et").getClass(), I18nField.class);
                             Map<String, Map<String, String>> metaDataMap = constructMetaDataMap(parameterMap.get("et"), i18nFieldNameList);
                             execInsertSql(metaDataMap, baseTableName, connection, baseTableId);
+                        } else{
+                            log.info("Can not find the value of id of parameter 'entity'!");
                         }
                     }
                 } else {
-                    log.info("parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
+                    log.info("Parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
                 }
                 baseResult = invocation.proceed();
                 break;
@@ -155,7 +157,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
             case DELETE: {
                 if (Map.class.isAssignableFrom(parameterClass) && methodSupported(SqlCommandType.DELETE, baseMethodStr)) {
                     BoundSql boundSql = ms.getSqlSource().getBoundSql(parameter);
-                    HashMap parameterMap = (HashMap) boundSql.getParameterObject();
+                    MapperMethod.ParamMap parameterMap = (MapperMethod.ParamMap) boundSql.getParameterObject();
                     List<ParameterMapping> parameterMappingList = boundSql.getParameterMappings();
                     List<Object> valueList = new ArrayList<>();
                     if (parameterMap.containsKey("ew")) {
@@ -183,7 +185,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                     String deleteSql = getSqlFromBaseSql(boundSql.getSql(), SqlCommandType.DELETE, null, null, null);
                     SqlExecuteUtil.executeForNoResultWithParameterId(connection, deleteSql, id);
                 } else {
-                    log.info("parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
+                    log.info("Parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
                 }
                 //后执行,否则delete关联时候有问题
                 baseResult = invocation.proceed();
@@ -195,7 +197,6 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                 String baseSql = boundSql.getSql();
                 List<String> i18nFieldList = ReflectionUtil.getSpecificAnnotationFieldNameList(domainClass, I18nField.class);
                 List<TableFieldInfo> tableFieldInfoList = tableInfo.getFieldList();
-
                 //根据id和Locale处理多语言
                 if (Long.class.isAssignableFrom(parameterClass) && methodSupported(SqlCommandType.SELECT, baseMethodStr)) {
                     //selectById
@@ -205,6 +206,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                     parameterList.add(parameter);
                     parameterList.add(LocaleContextHolder.getLocale().toString());
                     List<Object> objectList = SqlExecuteUtil.executeForListWithManyParameters(connection, selectSql, parameterList, domainClass, tableFieldInfoList);
+
                     //返回值
                     if (CollectionUtils.isNotEmpty(objectList)) {
                         return objectList;
@@ -225,7 +227,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                         return resultList;
                     }
                 } else {
-                    log.info("parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
+                    log.info("Parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
                 }
                 //后执行
                 baseResult = invocation.proceed();
@@ -384,13 +386,15 @@ public class I18nSqlProcessInterceptor implements Interceptor {
         map.forEach((id, subMap) -> {
             try {
                 Object result = domainClass.newInstance();
-                Method idSetMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass.getName()).get(MethodPrefixEnum.SET.getPrefix() + "Id");
-                idSetMethod.invoke(result, id);
+                Invoker idSetMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(ID_CONSTANT);
+                Object[] param = {id};
+                idSetMethodInvoker.invoke(result, param);
 
                 subMap.forEach((fieldName, filedValue) -> {
-                    Method setMethod = BaseI18nService2.i18nDomainSetMethodCache.get(domainClass.getName()).get(ReflectionUtil.methodNameCapitalize(MethodPrefixEnum.SET, fieldName));
+                    Invoker setMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(fieldName);
                     try {
-                        setMethod.invoke(result, filedValue);
+                        Object[] param2 = {filedValue};
+                        setMethodInvoker.invoke(result, param2);
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
                     } catch (InvocationTargetException e) {

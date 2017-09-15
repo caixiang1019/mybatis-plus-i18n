@@ -7,11 +7,12 @@ import com.baomidou.mybatisplus.toolkit.StringUtils;
 import com.cx.plugin.enums.MethodPrefixEnum;
 import com.cx.plugin.exception.ReflectException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.reflection.Reflector;
 
 import java.lang.reflect.*;
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Created by caixiang on 2017/8/15.
@@ -250,14 +251,13 @@ public class ReflectionUtil {
     }
 
     /**
-     * 获取指定包下父类为supClazz的所有类的属性的get/set(二选一)方法,组装成方便使用的map
+     * 获取指定包下父类为supClazz的所有类的属性的get&set方法,组装成方便使用的Reflctor对象
      *
-     * @param packagePath      不能为null
-     * @param methodPrefixEnum 需要初始化方法的前缀,当前只支持setXXX,getXXX,并且set方法只支持一个为field类型的参数
-     * @param supClazz         父类Class
+     * @param packagePath 不能为null
+     * @param supClazz    父类Class
      * @return
      */
-    public static Map<String, Map<String, Method>> getMethodsFromClass(String packagePath, MethodPrefixEnum methodPrefixEnum, Class supClazz) {
+    public static ConcurrentMap<Class<?>, Reflector> getReflectorsFromPackage(String packagePath, Class supClazz) {
         if (StringUtils.isEmpty(packagePath)) {
             throw new ReflectException("Can not find domain package path which needs to be initialized!");
         }
@@ -265,29 +265,9 @@ public class ReflectionUtil {
         if (CollectionUtils.isEmpty(classList)) {
             throw new ReflectException("Can not find specific class which needs to be initialized!");
         }
-        Map<String, Map<String, Method>> map = new HashMap<>();
+        ConcurrentHashMap<Class<?>, Reflector> map = new ConcurrentHashMap<>();
         classList.forEach(clz -> {
-            List<Method> methodList = Arrays.stream(clz.getDeclaredFields()).map(f -> {
-                Method method = null;
-                try {
-                    switch (methodPrefixEnum) {
-                        case SET:
-                            method = clz.getMethod(ReflectionUtil.methodNameCapitalize(methodPrefixEnum, f.getName()), f.getType());
-                            break;
-                        case GET:
-                            method = clz.getMethod(ReflectionUtil.methodNameCapitalize(methodPrefixEnum, f.getName()));
-                            break;
-                        default:
-                            throw new ReflectException("Only support get or set method!");
-                    }
-
-                } catch (NoSuchMethodException e) {
-                    e.printStackTrace();
-                }
-                return method;
-            }).filter(m -> m != null).collect(Collectors.toList());
-            Map<String, Method> methodMap = methodList.stream().collect(Collectors.toMap(Method::getName, Function.identity(), (k1, k2) -> k2));
-            map.put(clz.getName(), methodMap);
+            map.put(clz, new Reflector(clz));
         });
         return map;
     }

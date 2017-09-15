@@ -3,6 +3,7 @@ package com.cx.plugin.controller;
 import com.baomidou.mybatisplus.mapper.EntityWrapper;
 import com.cx.plugin.domain.ArtCompany;
 import com.cx.plugin.domain.ArtDep;
+import com.cx.plugin.domain.TestArtCompany;
 import com.cx.plugin.persistence.mapper.ArtDepMapper;
 import com.cx.plugin.persistence.service.ArtCompanyService;
 import com.cx.plugin.persistence.service.ArtCompanyService2;
@@ -41,6 +42,14 @@ public class TestController {
         this.artCompanyService = artCompanyService;
     }
 
+
+    @RequestMapping(value = "convertTestArtCompany", method = RequestMethod.GET)
+    public TestArtCompany convertTestArtCompanyEntity(@RequestParam(value = "id") Long id) {
+        TestArtCompany testArtCompany = new TestArtCompany();
+        testArtCompany.setTestArtName("testArtCompany");
+        testArtCompany.setId(id);
+        return baseI18nService2.convertOneByLocale(testArtCompany);
+    }
 
     @RequestMapping(value = "convert", method = RequestMethod.GET)
     public ArtDep convertEntity(@RequestParam(value = "id") Long id) {
@@ -130,19 +139,19 @@ public class TestController {
 
     @RequestMapping(value = "add", method = RequestMethod.POST)
     public Boolean addArtCompany(@RequestBody ArtCompany artCompany) {
-        artCompany.setIsDeleted(false);
+        artCompany.setDeleted(false);
         return artCompanyService.insert(artCompany);
     }
 
     @RequestMapping(value = "addAll", method = RequestMethod.POST)
     public Boolean addAllArtCompany(@RequestBody ArtCompany artCompany) {
-        artCompany.setIsDeleted(false);
+        artCompany.setDeleted(false);
         return artCompanyService.insertAllColumn(artCompany);
     }
 
     @RequestMapping(value = "addArtDep", method = RequestMethod.POST)
     public Boolean addArtDep(@RequestBody ArtDep artDep) {
-        artDep.setIsDeleted(false);
+        artDep.setDeleted(false);
         return artDepService.insert(artDep);
     }
 
@@ -153,6 +162,7 @@ public class TestController {
 
     @RequestMapping(value = "update", method = RequestMethod.PUT)
     public Boolean updateArtCompany(@RequestBody ArtCompany artCompany) {
+        artCompany.setDeleted(false);
         return artCompanyService.updateAllColumnById(artCompany);
     }
 
