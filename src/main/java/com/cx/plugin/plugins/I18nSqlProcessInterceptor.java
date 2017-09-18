@@ -81,112 +81,118 @@ public class I18nSqlProcessInterceptor implements Interceptor {
             case INSERT: {
                 //先执行,否则拿不到id
                 baseResult = invocation.proceed();
-                List<String> i18nFieldNameList = ReflectionUtil.getSpecificAnnotationFieldNameList(parameterClass, I18nField.class);
+                if(methodSupported(SqlCommandType.INSERT, baseMethodStr)) {
+                    List<String> i18nFieldNameList = ReflectionUtil.getSpecificAnnotationFieldNameList(parameterClass, I18nField.class);
 
-                if (BaseI18nDomain.class.isAssignableFrom(parameterClass) && methodSupported(SqlCommandType.INSERT, baseMethodStr) && CollectionUtils.isNotEmpty(i18nFieldNameList)) {
-                    String baseTableName = tableInfo.getTableName();
-                    Map<String, Map<String, String>> metaDataMap = constructMetaDataMap(parameter, i18nFieldNameList);
-                    execInsertSql(metaDataMap, baseTableName, connection, (Long) ReflectionUtil.getMethodValue(parameter, ID_CONSTANT));
+                    if (BaseI18nDomain.class.isAssignableFrom(parameterClass) && CollectionUtils.isNotEmpty(i18nFieldNameList)) {
+                        String baseTableName = tableInfo.getTableName();
+                        Map<String, Map<String, String>> metaDataMap = constructMetaDataMap(parameter, i18nFieldNameList);
+                        execInsertSql(metaDataMap, baseTableName, connection, (Long) ReflectionUtil.getMethodValue(parameter, ID_CONSTANT));
+                    }
                 }
                 break;
             }
             case UPDATE: {
                 BoundSql boundSql = ms.getSqlSource().getBoundSql(parameter);
-                if (Map.class.isAssignableFrom(boundSql.getParameterObject().getClass()) && Map.class.isAssignableFrom(parameterClass) && methodSupported(SqlCommandType.UPDATE, baseMethodStr)) {
-                    MapperMethod.ParamMap parameterMap = (MapperMethod.ParamMap) boundSql.getParameterObject();
-                    if (parameterMap.containsKey("ew")) {
-                        //update method
-                        Object entityWrapper = parameterMap.get("ew");
-                        //update 不带where 直接返回原逻辑
-                        if (entityWrapper == null) {
-                            return invocation.proceed();
-                        }
-                        Object entity = ((EntityWrapper) entityWrapper).getEntity();
-                        List<ParameterMapping> parameterMappingList = boundSql.getParameterMappings();
-                        List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty()).collect(Collectors.toList());
-                        //只取ew.entity.XXX
-                        List<Object> valueList = parametersStrList.stream().filter(s -> s.contains("ew.entity"))
-                                .map(s -> s.substring(s.lastIndexOf(DELIMITER_DOT) + 1)).collect(Collectors.toList()).stream()
-                                .map(p -> ReflectionUtil.getMethodValue(entity, p)).collect(Collectors.toList());
-                        // 取 where(包含) 之后的str
-                        String conditionStr = getSqlFromBaseSql(boundSql.getSql(), SqlCommandType.UPDATE, null, null, null);
-                        //select 先查出来符合检索条件的id
-                        StringBuilder selectIdSb = new StringBuilder("SELECT id FROM ").append(tableInfo.getTableName()).append(" ").append(conditionStr).append(";");
-                        List<Long> idList = SqlExecuteUtil.executeForIdsWithParameters(connection, valueList, selectIdSb.toString());
-                        if (CollectionUtils.isNotEmpty(idList)) {
-                            String idStr = idList.stream().map(id -> String.valueOf(id)).collect(Collectors.toList()).stream().collect(Collectors.joining(","));
-                            //delete 删除i18n表匹配的id记录
-                            StringBuilder deleteSb = new StringBuilder("DELETE FROM ").append(tableInfo.getTableName()).append("_i18n WHERE id IN (").append(idStr).append(");");
-                            SqlExecuteUtil.executeForNoResultWithoutParameters(connection, deleteSb.toString());
+                if(methodSupported(SqlCommandType.UPDATE, baseMethodStr)) {
+                    if (Map.class.isAssignableFrom(boundSql.getParameterObject().getClass()) && Map.class.isAssignableFrom(parameterClass)) {
+                        MapperMethod.ParamMap parameterMap = (MapperMethod.ParamMap) boundSql.getParameterObject();
+                        if (parameterMap.containsKey("ew")) {
+                            //update method
+                            Object entityWrapper = parameterMap.get("ew");
+                            //update 不带where 直接返回原逻辑
+                            if (entityWrapper == null) {
+                                return invocation.proceed();
+                            }
+                            Object entity = ((EntityWrapper) entityWrapper).getEntity();
+                            List<ParameterMapping> parameterMappingList = boundSql.getParameterMappings();
+                            List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty()).collect(Collectors.toList());
+                            //只取ew.entity.XXX
+                            List<Object> valueList = parametersStrList.stream().filter(s -> s.contains("ew.entity"))
+                                    .map(s -> s.substring(s.lastIndexOf(DELIMITER_DOT) + 1)).collect(Collectors.toList()).stream()
+                                    .map(p -> ReflectionUtil.getMethodValue(entity, p)).collect(Collectors.toList());
+                            // 取 where(包含) 之后的str
+                            String conditionStr = getSqlFromBaseSql(boundSql.getSql(), SqlCommandType.UPDATE, null, null, null);
+                            //select 先查出来符合检索条件的id
+                            StringBuilder selectIdSb = new StringBuilder("SELECT id FROM ").append(tableInfo.getTableName()).append(" ").append(conditionStr).append(";");
+                            List<Long> idList = SqlExecuteUtil.executeForIdsWithParameters(connection, valueList, selectIdSb.toString());
+                            if (CollectionUtils.isNotEmpty(idList)) {
+                                String idStr = idList.stream().map(id -> String.valueOf(id)).collect(Collectors.toList()).stream().collect(Collectors.joining(","));
+                                //delete 删除i18n表匹配的id记录
+                                StringBuilder deleteSb = new StringBuilder("DELETE FROM ").append(tableInfo.getTableName()).append("_i18n WHERE id IN (").append(idStr).append(");");
+                                SqlExecuteUtil.executeForNoResultWithoutParameters(connection, deleteSb.toString());
 
-                            //insert 根据传入的i18n元数据插入i18n表
-                            Object baseEntity = parameterMap.get("et");
-                            Class baseEntityClass = baseEntity.getClass();
-                            idList.forEach(id -> {
-                                List<String> i18nFieldNameList = ReflectionUtil.getSpecificAnnotationFieldNameList(baseEntityClass, I18nField.class);
-                                Map<String, Map<String, String>> metaDataMap = constructMetaDataMap(baseEntity, i18nFieldNameList);
-                                execInsertSql(metaDataMap, tableInfo.getTableName(), connection, id);
-                            });
+                                //insert 根据传入的i18n元数据插入i18n表
+                                Object baseEntity = parameterMap.get("et");
+                                Class baseEntityClass = baseEntity.getClass();
+                                idList.forEach(id -> {
+                                    List<String> i18nFieldNameList = ReflectionUtil.getSpecificAnnotationFieldNameList(baseEntityClass, I18nField.class);
+                                    Map<String, Map<String, String>> metaDataMap = constructMetaDataMap(baseEntity, i18nFieldNameList);
+                                    execInsertSql(metaDataMap, tableInfo.getTableName(), connection, id);
+                                });
+                            }
+                        } else if (parameterMap.containsKey("et") && BaseI18nDomain.class.isAssignableFrom(parameterMap.get("et").getClass())) {
+                            // updateById,updateAllColumnsById method
+                            String baseTableName = tableInfo.getTableName();
+                            Long baseTableId = (Long) ReflectionUtil.getMethodValue(parameterMap.get("et"), ID_CONSTANT);
+                            //updateById,updateAllColumnsById传入的entity必须有id,不然无法确定改哪个
+                            if (baseTableId != null) {
+                                String sqlOrigin = "DELETE FROM ${tableName}_i18n WHERE id = ?;";
+                                Map<String, String> sqlParamMap = new HashMap<>();
+                                sqlParamMap.put("tableName", baseTableName);
+                                String deleteSql = StrSubstitutor.replace(sqlOrigin, sqlParamMap);
+                                //1.delete
+                                SqlExecuteUtil.executeForNoResultWithParameterId(connection, deleteSql, baseTableId);
+                                //2.insert
+                                List<String> i18nFieldNameList = ReflectionUtil.getSpecificAnnotationFieldNameList(parameterMap.get("et").getClass(), I18nField.class);
+                                Map<String, Map<String, String>> metaDataMap = constructMetaDataMap(parameterMap.get("et"), i18nFieldNameList);
+                                execInsertSql(metaDataMap, baseTableName, connection, baseTableId);
+                            } else {
+                                log.info("Can not find the value of id of parameter 'entity'!");
+                            }
                         }
-                    } else if (parameterMap.containsKey("et") && BaseI18nDomain.class.isAssignableFrom(parameterMap.get("et").getClass())) {
-                        // updateById,updateAllColumnsById method
-                        String baseTableName = tableInfo.getTableName();
-                        Long baseTableId = (Long) ReflectionUtil.getMethodValue(parameterMap.get("et"), ID_CONSTANT);
-                        //updateById,updateAllColumnsById传入的entity必须有id,不然无法确定改哪个
-                        if (baseTableId != null) {
-                            String sqlOrigin = "DELETE FROM ${tableName}_i18n WHERE id = ?;";
-                            Map<String, String> sqlParamMap = new HashMap<>();
-                            sqlParamMap.put("tableName", baseTableName);
-                            String deleteSql = StrSubstitutor.replace(sqlOrigin, sqlParamMap);
-                            //1.delete
-                            SqlExecuteUtil.executeForNoResultWithParameterId(connection, deleteSql, baseTableId);
-                            //2.insert
-                            List<String> i18nFieldNameList = ReflectionUtil.getSpecificAnnotationFieldNameList(parameterMap.get("et").getClass(), I18nField.class);
-                            Map<String, Map<String, String>> metaDataMap = constructMetaDataMap(parameterMap.get("et"), i18nFieldNameList);
-                            execInsertSql(metaDataMap, baseTableName, connection, baseTableId);
-                        } else{
-                            log.info("Can not find the value of id of parameter 'entity'!");
-                        }
+                    } else {
+                        log.info("Parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
                     }
-                } else {
-                    log.info("Parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
                 }
                 baseResult = invocation.proceed();
                 break;
             }
             //这里的delete原本就是物理删除,逻辑先留着
             case DELETE: {
-                if (Map.class.isAssignableFrom(parameterClass) && methodSupported(SqlCommandType.DELETE, baseMethodStr)) {
-                    BoundSql boundSql = ms.getSqlSource().getBoundSql(parameter);
-                    MapperMethod.ParamMap parameterMap = (MapperMethod.ParamMap) boundSql.getParameterObject();
-                    List<ParameterMapping> parameterMappingList = boundSql.getParameterMappings();
-                    List<Object> valueList = new ArrayList<>();
-                    if (parameterMap.containsKey("ew")) {
-                        //delete 不带where 直接返回原逻辑
-                        Object entityWrapper = parameterMap.get("ew");
-                        if (entityWrapper == null) {
-                            return invocation.proceed();
+                if(methodSupported(SqlCommandType.DELETE, baseMethodStr)) {
+                    if (Map.class.isAssignableFrom(parameterClass)) {
+                        BoundSql boundSql = ms.getSqlSource().getBoundSql(parameter);
+                        MapperMethod.ParamMap parameterMap = (MapperMethod.ParamMap) boundSql.getParameterObject();
+                        List<ParameterMapping> parameterMappingList = boundSql.getParameterMappings();
+                        List<Object> valueList = new ArrayList<>();
+                        if (parameterMap.containsKey("ew")) {
+                            //delete 不带where 直接返回原逻辑
+                            Object entityWrapper = parameterMap.get("ew");
+                            if (entityWrapper == null) {
+                                return invocation.proceed();
+                            }
+                            Object entity = ((EntityWrapper) entityWrapper).getEntity();
+                            //禁止全表delete! 等价于entity!=null
+                            List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty().substring(s.getProperty().lastIndexOf(DELIMITER_DOT) + 1)).collect(Collectors.toList());
+                            valueList = parametersStrList.stream().map(p -> ReflectionUtil.getMethodValue(entity, p)).collect(Collectors.toList());
+                        } else if (parameterMap.containsKey("cm")) {
+                            HashMap<String, Object> entity = (HashMap) parameterMap.get("cm");
+                            List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty().substring(s.getProperty().indexOf("[") + 1, s.getProperty().indexOf("]"))).collect(Collectors.toList());
+                            valueList = parametersStrList.stream().map(p -> entity.get(p)).collect(Collectors.toList());
+
                         }
-                        Object entity = ((EntityWrapper) entityWrapper).getEntity();
-                        //禁止全表delete! 等价于entity!=null
-                        List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty().substring(s.getProperty().lastIndexOf(DELIMITER_DOT) + 1)).collect(Collectors.toList());
-                        valueList = parametersStrList.stream().map(p -> ReflectionUtil.getMethodValue(entity, p)).collect(Collectors.toList());
-                    } else if (parameterMap.containsKey("cm")) {
-                        HashMap<String, Object> entity = (HashMap) parameterMap.get("cm");
-                        List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty().substring(s.getProperty().indexOf("[") + 1, s.getProperty().indexOf("]"))).collect(Collectors.toList());
-                        valueList = parametersStrList.stream().map(p -> entity.get(p)).collect(Collectors.toList());
+                        String deleteSql = getSqlFromBaseSql(boundSql.getSql(), SqlCommandType.DELETE, null, null, null);
+                        SqlExecuteUtil.executeForNoResultWithManyParameters(connection, deleteSql, valueList);
 
+                    } else if (Long.class.isAssignableFrom(parameterClass)) {
+                        BoundSql boundSql = ms.getSqlSource().getBoundSql(parameter);
+                        Long id = (Long) boundSql.getParameterObject();
+                        String deleteSql = getSqlFromBaseSql(boundSql.getSql(), SqlCommandType.DELETE, null, null, null);
+                        SqlExecuteUtil.executeForNoResultWithParameterId(connection, deleteSql, id);
+                    } else {
+                        log.info("Parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
                     }
-                    String deleteSql = getSqlFromBaseSql(boundSql.getSql(), SqlCommandType.DELETE, null, null, null);
-                    SqlExecuteUtil.executeForNoResultWithManyParameters(connection, deleteSql, valueList);
-
-                } else if (Long.class.isAssignableFrom(parameterClass) && methodSupported(SqlCommandType.DELETE, baseMethodStr)) {
-                    BoundSql boundSql = ms.getSqlSource().getBoundSql(parameter);
-                    Long id = (Long) boundSql.getParameterObject();
-                    String deleteSql = getSqlFromBaseSql(boundSql.getSql(), SqlCommandType.DELETE, null, null, null);
-                    SqlExecuteUtil.executeForNoResultWithParameterId(connection, deleteSql, id);
-                } else {
-                    log.info("Parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
                 }
                 //后执行,否则delete关联时候有问题
                 baseResult = invocation.proceed();
@@ -194,41 +200,43 @@ public class I18nSqlProcessInterceptor implements Interceptor {
             }
             case SELECT: {
                 //selectById
-                BoundSql boundSql = ms.getSqlSource().getBoundSql(parameter);
-                String baseSql = boundSql.getSql();
-                List<String> i18nFieldList = ReflectionUtil.getSpecificAnnotationFieldNameList(domainClass, I18nField.class);
-                List<TableFieldInfo> tableFieldInfoList = tableInfo.getFieldList();
-                //根据id和Locale处理多语言
-                if (Long.class.isAssignableFrom(parameterClass) && methodSupported(SqlCommandType.SELECT, baseMethodStr)) {
-                    //selectById
-                    String selectSql = getSqlFromBaseSql(baseSql, SqlCommandType.SELECT, tableFieldInfoList, i18nFieldList, null);
-                    //顺序很重要,根据where里面的?对应的column顺序
-                    List<Object> parameterList = new ArrayList<>();
-                    parameterList.add(parameter);
-                    parameterList.add(LocaleContextHolder.getLocale().toString());
-                    List<Object> objectList = SqlExecuteUtil.executeForListWithManyParameters(connection, selectSql, parameterList, domainClass, tableFieldInfoList);
+                if (methodSupported(SqlCommandType.SELECT, baseMethodStr)) {
+                    BoundSql boundSql = ms.getSqlSource().getBoundSql(parameter);
+                    String baseSql = boundSql.getSql();
+                    List<String> i18nFieldList = ReflectionUtil.getSpecificAnnotationFieldNameList(domainClass, I18nField.class);
+                    List<TableFieldInfo> tableFieldInfoList = tableInfo.getFieldList();
+                    //根据id和Locale处理多语言
+                    if (Long.class.isAssignableFrom(parameterClass)) {
+                        //selectById
+                        String selectSql = getSqlFromBaseSql(baseSql, SqlCommandType.SELECT, tableFieldInfoList, i18nFieldList, null);
+                        //顺序很重要,根据where里面的?对应的column顺序
+                        List<Object> parameterList = new ArrayList<>();
+                        parameterList.add(parameter);
+                        parameterList.add(LocaleContextHolder.getLocale().toString());
+                        List<Object> objectList = SqlExecuteUtil.executeForListWithManyParameters(connection, selectSql, parameterList, domainClass, tableFieldInfoList);
 
-                    //返回值
-                    if (CollectionUtils.isNotEmpty(objectList)) {
-                        return objectList;
-                    }
-                } else if (Map.class.isAssignableFrom(parameterClass) && methodSupported(SqlCommandType.SELECT, baseMethodStr)) {
-                    //selectOne,selectList
-                    EntityWrapper entityWrapper = (EntityWrapper) ((Map) boundSql.getParameterObject()).get("ew");
-                    String sqlWhere = entityWrapper.getSqlSegment();
-                    HashMap<String, String> paramValuePairs = (HashMap) entityWrapper.getParamNameValuePairs();
-                    for (Map.Entry e : paramValuePairs.entrySet()) {
-                        sqlWhere = sqlWhere.replace("#{ew.paramNameValuePairs." + e.getKey() + "}", "'" + e.getValue() + "'").replace(tableInfo.getTableName(), tableInfo.getTableName() + " base");
-                    }
-                    String selectSql = getSqlFromBaseSql(baseSql, SqlCommandType.SELECT, tableFieldInfoList, i18nFieldList, sqlWhere);
+                        //返回值
+                        if (CollectionUtils.isNotEmpty(objectList)) {
+                            return objectList;
+                        }
+                    } else if (Map.class.isAssignableFrom(parameterClass)) {
+                        //selectOne,selectList
+                        EntityWrapper entityWrapper = (EntityWrapper) ((Map) boundSql.getParameterObject()).get("ew");
+                        String sqlWhere = entityWrapper.getSqlSegment();
+                        HashMap<String, String> paramValuePairs = (HashMap) entityWrapper.getParamNameValuePairs();
+                        for (Map.Entry e : paramValuePairs.entrySet()) {
+                            sqlWhere = sqlWhere.replace("#{ew.paramNameValuePairs." + e.getKey() + "}", "'" + e.getValue() + "'").replace(tableInfo.getTableName(), tableInfo.getTableName() + " base");
+                        }
+                        String selectSql = getSqlFromBaseSql(baseSql, SqlCommandType.SELECT, tableFieldInfoList, i18nFieldList, sqlWhere);
 
-                    Map<Long, Map<String, Object>> map = SqlExecuteUtil.executeForMapWithoutParameters(connection, selectSql, tableFieldInfoList, i18nFieldList);
-                    List<Object> resultList = convertBaseMap2List(map);
-                    if (CollectionUtils.isNotEmpty(resultList)) {
-                        return resultList;
+                        Map<Long, Map<String, Object>> map = SqlExecuteUtil.executeForMapWithoutParameters(connection, selectSql, tableFieldInfoList, i18nFieldList);
+                        List<Object> resultList = convertBaseMap2List(map);
+                        if (CollectionUtils.isNotEmpty(resultList)) {
+                            return resultList;
+                        }
+                    } else {
+                        log.info("Parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
                     }
-                } else {
-                    log.info("Parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
                 }
                 //后执行
                 baseResult = invocation.proceed();
@@ -450,10 +458,12 @@ public class I18nSqlProcessInterceptor implements Interceptor {
 
         try {
             domainClass = ReflectionUtil.extractModelClass(Class.forName(ms.getId().substring(0, ms.getId().lastIndexOf(DELIMITER_DOT))));
+            if(domainClass != null) {
+                tableInfo = TableInfoHelper.getTableInfo(domainClass);
+            }
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
-        tableInfo = TableInfoHelper.getTableInfo(domainClass);
 
     }
 
