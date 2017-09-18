@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.annotations.TableId;
 import com.baomidou.mybatisplus.annotations.TableName;
 import com.baomidou.mybatisplus.enums.FieldStrategy;
 import com.cx.plugin.annotations.I18nField;
+import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 
 /**
@@ -92,19 +94,5 @@ public class ArtDep extends BaseI18nDomain {
 
     public void setDeleted(Boolean deleted) {
         isDeleted = deleted;
-    }
-
-    @Override
-    public String toString() {
-        return "ArtDep{" +
-                "id=" + id +
-                ", depName='" + depName + '\'' +
-                ", depCode='" + depCode + '\'' +
-                ", depCountry='" + depCountry + '\'' +
-                ", phone='" + phone + '\'' +
-                ", address='" + address + '\'' +
-                ", age=" + age +
-                ", isDeleted=" + isDeleted +
-                '}';
     }
 }

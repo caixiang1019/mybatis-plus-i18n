@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.ibatis.reflection.Reflector;
 import org.apache.ibatis.reflection.invoker.Invoker;
+import org.apache.ibatis.reflection.invoker.MethodInvoker;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -68,6 +69,7 @@ public class BaseI18nService2 {
     public <T extends BaseI18nDomain> T convertOneByLocale(T entity) {
 
         Locale locale = LocaleContextHolder.getLocale();
+        log.info("Get locale from browser: " + locale.toString());
         try (Connection connection = dataSource.getConnection()) {
             Class clazz = entity.getClass();
             TableInfo tableInfo = TableInfoHelper.getTableInfo(clazz);
@@ -165,8 +167,12 @@ public class BaseI18nService2 {
                 i18nFieldNameList.forEach(t -> {
                     Invoker setMethodInvoker = i18nDomainMethodCache.get(clazz).getSetInvoker(t);
                     try {
-                        Object[] params = {resultSet.getObject(t)};
-                        setMethodInvoker.invoke(result, params);
+                        if (setMethodInvoker instanceof MethodInvoker) {
+                            ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, resultSet, t, result);
+                        } else {
+                            Object[] paramField = {resultSet.getObject(t)};
+                            setMethodInvoker.invoke(result, paramField);
+                        }
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
                     } catch (InvocationTargetException e) {

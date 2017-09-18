@@ -8,8 +8,11 @@ import com.cx.plugin.enums.MethodPrefixEnum;
 import com.cx.plugin.exception.ReflectException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.reflection.Reflector;
+import org.apache.ibatis.reflection.invoker.MethodInvoker;
 
 import java.lang.reflect.*;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -270,6 +273,53 @@ public class ReflectionUtil {
             map.put(clz, new Reflector(clz));
         });
         return map;
+    }
+
+    /**
+     * 针对Invoker缓存方式的特殊处理对象设值
+     *
+     * @param setMethodInvoker MethodInvoker实例
+     * @param data             数据集
+     * @param property         field.getName
+     * @param result           要设值得对象
+     */
+    public static void specificProcessInvoker(MethodInvoker setMethodInvoker, Object data, String property, Object result) {
+        Field methodField = null;
+
+        try {
+            methodField = setMethodInvoker.getClass().getDeclaredField("method");
+            methodField.setAccessible(true);
+            Method method = (Method) methodField.get(setMethodInvoker);
+            //确定是set方法且只有一个参数
+            Class parameterClazz = method.getParameterTypes()[0];
+            Object[] paramField;
+            if (data instanceof ResultSet) {
+                ResultSet resultSet = (ResultSet) data;
+                //针对UUID特殊处理,如有其它特殊类型,依然可以放在这里处理
+                if (parameterClazz == UUID.class) {
+                    paramField = new Object[]{UUID.fromString((String) resultSet.getObject(property))};
+                    setMethodInvoker.invoke(result, paramField);
+                } else {
+                    paramField = new Object[]{resultSet.getObject(property)};
+                }
+            } else {
+                if (parameterClazz == UUID.class) {
+                    paramField = new Object[]{UUID.fromString(String.valueOf(data))};
+                } else {
+                    paramField = new Object[]{data};
+                }
+            }
+            setMethodInvoker.invoke(result, paramField);
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+
     }
 
 }

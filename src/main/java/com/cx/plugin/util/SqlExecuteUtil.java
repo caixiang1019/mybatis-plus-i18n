@@ -3,6 +3,7 @@ package com.cx.plugin.util;
 import com.baomidou.mybatisplus.entity.TableFieldInfo;
 import com.cx.plugin.service.BaseI18nService2;
 import org.apache.ibatis.reflection.invoker.Invoker;
+import org.apache.ibatis.reflection.invoker.MethodInvoker;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.util.CollectionUtils;
 
@@ -152,8 +153,12 @@ public class SqlExecuteUtil {
                 tableFieldInfoList.forEach(t -> {
                     Invoker setMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(t.getProperty());
                     try {
-                        Object[] params = {resultSet.getObject(t.getProperty())};
-                        setMethodInvoker.invoke(result, params);
+                        if (setMethodInvoker instanceof MethodInvoker) {
+                            ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, resultSet, t.getProperty(), result);
+                        } else {
+                            Object[] paramField = {resultSet.getObject(t.getProperty())};
+                            setMethodInvoker.invoke(result, paramField);
+                        }
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
                     } catch (InvocationTargetException e) {

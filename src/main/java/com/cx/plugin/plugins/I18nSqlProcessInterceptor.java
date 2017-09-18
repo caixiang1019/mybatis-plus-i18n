@@ -24,6 +24,7 @@ import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.mapping.SqlCommandType;
 import org.apache.ibatis.plugin.*;
 import org.apache.ibatis.reflection.invoker.Invoker;
+import org.apache.ibatis.reflection.invoker.MethodInvoker;
 import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -393,8 +394,12 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                 subMap.forEach((fieldName, filedValue) -> {
                     Invoker setMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(fieldName);
                     try {
-                        Object[] param2 = {filedValue};
-                        setMethodInvoker.invoke(result, param2);
+                        if (setMethodInvoker instanceof MethodInvoker) {
+                            ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, filedValue, fieldName, result);
+                        } else {
+                            Object[] paramField = {filedValue};
+                            setMethodInvoker.invoke(result, paramField);
+                        }
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
                     } catch (InvocationTargetException e) {

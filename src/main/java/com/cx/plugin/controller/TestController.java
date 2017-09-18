@@ -139,13 +139,13 @@ public class TestController {
 
     @RequestMapping(value = "add", method = RequestMethod.POST)
     public Boolean addArtCompany(@RequestBody ArtCompany artCompany) {
-        artCompany.setDeleted(false);
+        artCompany.setIsDeleted(false);
         return artCompanyService.insert(artCompany);
     }
 
     @RequestMapping(value = "addAll", method = RequestMethod.POST)
     public Boolean addAllArtCompany(@RequestBody ArtCompany artCompany) {
-        artCompany.setDeleted(false);
+        artCompany.setIsDeleted(false);
         return artCompanyService.insertAllColumn(artCompany);
     }
 
@@ -162,7 +162,7 @@ public class TestController {
 
     @RequestMapping(value = "update", method = RequestMethod.PUT)
     public Boolean updateArtCompany(@RequestBody ArtCompany artCompany) {
-        artCompany.setDeleted(false);
+        artCompany.setIsDeleted(false);
         return artCompanyService.updateAllColumnById(artCompany);
     }
 
