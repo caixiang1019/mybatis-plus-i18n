@@ -29,6 +29,6 @@ public class ArtCompany extends BaseI18nDomain {
     private String address;
     private Integer age;
     @TableField(strategy = FieldStrategy.NOT_NULL)
-    private Boolean isDeleted;
+    private boolean isDeleted;
 
 }

@@ -32,9 +32,18 @@ public class ReflectionUtil {
      * @param str   属性字符串内容
      * @return
      */
-    public static String getMethodCapitalize(Field field, final String str) {
+    public static String getMethodCapitalize(Field field, MethodPrefixEnum methodPrefixEnum, String str) {
         Class<?> fieldType = field.getType();
-        return StringUtils.concatCapitalize(boolean.class.equals(fieldType) ? "is" : "get", str);
+        //处理boolean.class||Boolean.class
+        str = StringUtils.removeIsPrefixIfBoolean(str, fieldType);
+        switch (methodPrefixEnum) {
+            case GET:
+                return StringUtils.concatCapitalize(boolean.class.equals(fieldType) ? "is" : "get", str);
+            case SET:
+                return StringUtils.concatCapitalize("set", str);
+            default:
+                throw new ReflectException("Only support reflect get/set method!");
+        }
     }
 
     /**
@@ -63,7 +72,7 @@ public class ReflectionUtil {
                 throw new ReflectException(
                         String.format("Error: NoSuchField in %s for %s.  Cause:", cls.getSimpleName(), str));
             }
-            Method method = cls.getMethod(getMethodCapitalize(fieldMaps.get(str), str));
+            Method method = cls.getMethod(getMethodCapitalize(fieldMaps.get(str), MethodPrefixEnum.GET, str));
             return method.invoke(entity);
         } catch (NoSuchMethodException e) {
             throw new ReflectException(String.format("Error: NoSuchMethod in %s.  Cause:", cls.getSimpleName()) + e);

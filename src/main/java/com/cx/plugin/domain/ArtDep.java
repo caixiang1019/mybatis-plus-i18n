@@ -5,9 +5,7 @@ import com.baomidou.mybatisplus.annotations.TableId;
 import com.baomidou.mybatisplus.annotations.TableName;
 import com.baomidou.mybatisplus.enums.FieldStrategy;
 import com.cx.plugin.annotations.I18nField;
-import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 
 
 /**
@@ -29,7 +27,7 @@ public class ArtDep extends BaseI18nDomain {
     private String phone;
     private String address;
     private Integer age;
-    @TableField(value = "is_deleted", strategy = FieldStrategy.NOT_NULL)
+    @TableField(strategy = FieldStrategy.NOT_NULL)
     private Boolean isDeleted;
 
     public Long getId() {
@@ -94,5 +92,10 @@ public class ArtDep extends BaseI18nDomain {
 
     public void setDeleted(Boolean deleted) {
         isDeleted = deleted;
+    }
+
+    public static void main(String[] args) {
+//        String st = StringUtils.removeIsPrefixIfBoolean("isTTT",boolean.class);
+//        System.out.println(st);
     }
 }

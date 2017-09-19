@@ -139,13 +139,13 @@ public class TestController {
 
     @RequestMapping(value = "add", method = RequestMethod.POST)
     public Boolean addArtCompany(@RequestBody ArtCompany artCompany) {
-        artCompany.setIsDeleted(false);
+        artCompany.setDeleted(false);
         return artCompanyService.insert(artCompany);
     }
 
     @RequestMapping(value = "addAll", method = RequestMethod.POST)
     public Boolean addAllArtCompany(@RequestBody ArtCompany artCompany) {
-        artCompany.setIsDeleted(false);
+        artCompany.setDeleted(false);
         return artCompanyService.insertAllColumn(artCompany);
     }
 
@@ -162,7 +162,7 @@ public class TestController {
 
     @RequestMapping(value = "update", method = RequestMethod.PUT)
     public Boolean updateArtCompany(@RequestBody ArtCompany artCompany) {
-        artCompany.setIsDeleted(false);
+        artCompany.setDeleted(false);
         return artCompanyService.updateAllColumnById(artCompany);
     }
 
@@ -178,9 +178,11 @@ public class TestController {
 
     @RequestMapping(value = "update2", method = RequestMethod.PUT)
     public Boolean updateArtCompany2(@RequestBody ArtCompany artCompany) {
+        artCompany.setDeleted(false);
         ArtCompany artCompany1 = new ArtCompany();
         artCompany1.setAge(34);
         artCompany1.setName("蔡翔");
+        artCompany1.setDeleted(false);
         return artCompanyService.update(artCompany, new EntityWrapper<>(artCompany1));
     }
 
