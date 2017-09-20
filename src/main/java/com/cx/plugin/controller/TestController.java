@@ -4,11 +4,13 @@ import com.baomidou.mybatisplus.mapper.EntityWrapper;
 import com.cx.plugin.domain.ArtCompany;
 import com.cx.plugin.domain.ArtDep;
 import com.cx.plugin.domain.TestArtCompany;
+import com.cx.plugin.persistence.mapper.ArtCompanyMapper;
 import com.cx.plugin.persistence.mapper.ArtDepMapper;
 import com.cx.plugin.persistence.service.ArtCompanyService;
 import com.cx.plugin.persistence.service.ArtCompanyService2;
 import com.cx.plugin.persistence.service.ArtDepService;
 import com.cx.plugin.service.BaseI18nService2;
+import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +28,8 @@ public class TestController {
 
     @Autowired
     private ArtDepMapper artDepMapper;
+    @Autowired
+    private ArtCompanyMapper artCompanyMapper;
 
     private ArtDepService artDepService;
 
@@ -100,6 +104,16 @@ public class TestController {
         return artCompany.toString();
     }
 
+    @RequestMapping(value = "selectOne2", method = RequestMethod.GET)
+    public String selectOne2(@RequestParam(value = "id") Long id) {
+        ArtCompany artCompany = new ArtCompany();
+        artCompany.setName("蔡翔");
+        artCompany = artCompanyMapper.selectOne(artCompany);
+        if (artCompany == null)
+            return null;
+        return artCompany.toString();
+    }
+
     @RequestMapping(value = "selectList", method = RequestMethod.GET)
     public String selectArtDep(@RequestParam(value = "age") Integer age) {
         List<ArtDep> artDepList = artDepService.selectList(new EntityWrapper<ArtDep>().eq("age", age));
@@ -152,6 +166,7 @@ public class TestController {
     @RequestMapping(value = "addArtDep", method = RequestMethod.POST)
     public Boolean addArtDep(@RequestBody ArtDep artDep) {
         artDep.setDeleted(false);
+        artDep.setCreatedDate(DateTime.now());
         return artDepService.insert(artDep);
     }
 

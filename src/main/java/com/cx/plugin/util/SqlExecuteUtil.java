@@ -187,8 +187,7 @@ public class SqlExecuteUtil {
     }
 
     /**
-     * 针对selectOne/selectList操作
-     * 对拿到的结果集特殊处理:使得如果匹配i18n的language就返回翻译field的value,不匹配的记录返回base记录
+     * 针对selectOne/selectList操作,不带参数
      *
      * @param connection
      * @param sql
@@ -200,6 +199,47 @@ public class SqlExecuteUtil {
         Map<Long, Map<String, Object>> map = new HashMap<>();
         try (PreparedStatement psm = connection.prepareStatement(sql)) {
             ResultSet resultSet = psm.executeQuery();
+            processResult(map, resultSet, tableFieldInfoList, i18nFieldList);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return map;
+    }
+
+    /**
+     * 针对selectOne/selectList操作,带参数
+     *
+     * @param connection
+     * @param sql
+     * @param parameterList      参数list
+     * @param tableFieldInfoList
+     * @param i18nFieldList
+     * @return
+     */
+    public static Map executeForMapWithManyParameters(Connection connection, String sql, List<Object> parameterList, List<TableFieldInfo> tableFieldInfoList, List<String> i18nFieldList) {
+        Map<Long, Map<String, Object>> map = new HashMap<>();
+        try (PreparedStatement psm = connection.prepareStatement(sql)) {
+            for (int i = 0; i < parameterList.size(); i++) {
+                psm.setObject(i + 1, parameterList.get(i));
+            }
+            ResultSet resultSet = psm.executeQuery();
+            processResult(map, resultSet, tableFieldInfoList, i18nFieldList);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return map;
+    }
+
+    /**
+     * 对拿到的结果集特殊处理:使得如果匹配i18n的language就返回翻译field的value,不匹配的记录返回base记录
+     *
+     * @param map
+     * @param resultSet
+     * @param tableFieldInfoList
+     * @param i18nFieldList
+     */
+    private static void processResult(Map<Long, Map<String, Object>> map, ResultSet resultSet, List<TableFieldInfo> tableFieldInfoList, List<String> i18nFieldList) {
+        try {
             while (resultSet.next()) {
                 Map<String, Object> subMap = new HashMap<>();
                 Long id = resultSet.getLong("id");
@@ -223,7 +263,6 @@ public class SqlExecuteUtil {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return map;
     }
 
 }

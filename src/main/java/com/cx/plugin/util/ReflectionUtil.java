@@ -9,6 +9,7 @@ import com.cx.plugin.exception.ReflectException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.reflection.Reflector;
 import org.apache.ibatis.reflection.invoker.MethodInvoker;
+import org.joda.time.DateTime;
 
 import java.lang.reflect.*;
 import java.sql.ResultSet;
@@ -304,16 +305,20 @@ public class ReflectionUtil {
             Object[] paramField;
             if (data instanceof ResultSet) {
                 ResultSet resultSet = (ResultSet) data;
-                //针对UUID特殊处理,如有其它特殊类型,依然可以放在这里处理
+                //针对UUID、DateTime特殊处理,如有其它特殊类型,需要放在这里处理
                 if (parameterClazz == UUID.class) {
                     paramField = new Object[]{UUID.fromString((String) resultSet.getObject(property))};
                     setMethodInvoker.invoke(result, paramField);
+                } else if(parameterClazz == DateTime.class){
+                    paramField = new Object[]{new DateTime(resultSet.getObject(property))};
                 } else {
                     paramField = new Object[]{resultSet.getObject(property)};
                 }
             } else {
                 if (parameterClazz == UUID.class) {
                     paramField = new Object[]{UUID.fromString(String.valueOf(data))};
+                } else if(parameterClazz == DateTime.class){
+                    paramField = new Object[]{new DateTime(data)};
                 } else {
                     paramField = new Object[]{data};
                 }

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotations.TableName;
 import com.baomidou.mybatisplus.enums.FieldStrategy;
 import com.cx.plugin.annotations.I18nField;
 import lombok.NoArgsConstructor;
+import org.joda.time.DateTime;
 
 
 /**
@@ -29,6 +30,7 @@ public class ArtDep extends BaseI18nDomain {
     private Integer age;
     @TableField(strategy = FieldStrategy.NOT_NULL)
     private Boolean isDeleted;
+    private DateTime createdDate = DateTime.now();
 
     public Long getId() {
         return id;
@@ -94,8 +96,11 @@ public class ArtDep extends BaseI18nDomain {
         isDeleted = deleted;
     }
 
-    public static void main(String[] args) {
-//        String st = StringUtils.removeIsPrefixIfBoolean("isTTT",boolean.class);
-//        System.out.println(st);
+    public DateTime getCreatedDate() {
+        return createdDate;
+    }
+
+    public void setCreatedDate(DateTime createdDate) {
+        this.createdDate = createdDate;
     }
 }

@@ -73,8 +73,9 @@ public class MybatisI18NConfig {
         MybatisConfiguration mybatisConfiguration = new MybatisConfiguration();
         mybatisConfiguration.setDefaultScriptingLanguage(MybatisXMLLanguageDriver.class);
         mybatisSqlSessionFactoryBean.setConfiguration(mybatisConfiguration);
-        mybatisSqlSessionFactoryBean.setTypeAliasesPackage("com.helioscloud.atlantis.plugin.domain");
+        mybatisSqlSessionFactoryBean.setTypeAliasesPackage("com.cx.plugin");
         mybatisSqlSessionFactoryBean.setMapperLocations(new PathMatchingResourcePatternResolver().getResources("com/cx/plugin/persistence/mapper/*Mapper.xml"));
+        mybatisSqlSessionFactoryBean.setTypeHandlersPackage("com.cx.plugin.persistence.typehandler");
         return mybatisSqlSessionFactoryBean;
     }
 
