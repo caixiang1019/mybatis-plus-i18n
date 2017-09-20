@@ -300,8 +300,9 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                         sqlWhere = replaceColumnWithTableAlias(sqlWhere, tableFieldInfo.getColumn().replaceAll("`", ""), "base", "").replaceAll("`", "");
                     }
                     //id特殊处理
-                    sqlWhere = sqlWhere.replaceFirst("id", "base.id");
-                    sqlHeader = sqlHeader.replaceFirst("id", "base.id");
+                    if (!Character.isLowerCase(sqlWhere.charAt(sqlWhere.indexOf("id") - 1)) && !Character.isLowerCase(sqlWhere.charAt(sqlWhere.indexOf("id") + 2))) {
+                        sqlWhere = sqlWhere.replaceFirst("id", "base.id");
+                    }                    sqlHeader = sqlHeader.replaceFirst("id", "base.id");
                     sb.append(sqlHeader).append(",i18n.language FROM ").append(tableInfo.getTableName()).append(" base INNER JOIN ").append(tableInfo.getTableName())
                             .append("_i18n i18n  ON base.id = i18n.id ").append(sqlWhere).append(";");
                 }
