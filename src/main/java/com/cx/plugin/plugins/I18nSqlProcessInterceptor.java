@@ -275,34 +275,35 @@ public class I18nSqlProcessInterceptor implements Interceptor {
         StringBuilder sb = new StringBuilder();
         switch (sqlCommandType) {
             case SELECT: {
-                if (sqlWhere == null) {
+                baseSql = baseSql.replaceAll("`", "");
+                if (StringUtils.isEmpty(sqlWhere)) {
                     for (TableFieldInfo tableFieldInfo : tableFieldInfoList) {
                         if (i18nFieldList.contains(tableFieldInfo.getProperty())) {
-                            baseSql = replaceColumnWithTableAlias(baseSql, tableFieldInfo.getColumn(), "i18n", "");
+                            baseSql = replaceColumnWithTableAlias(baseSql, tableFieldInfo.getColumn().replaceAll("`", ""), "i18n", "");
                         } else {
-                            baseSql = replaceColumnWithTableAlias(baseSql, tableFieldInfo.getColumn(), "base", "");
+                            baseSql = replaceColumnWithTableAlias(baseSql, tableFieldInfo.getColumn().replaceAll("`", ""), "base", "");
                         }
                     }
                     //id特殊处理
-                    baseSql = baseSql.replaceFirst("id", "base.id");
+                    baseSql = replaceColumnWithTableAlias(baseSql, "id", "base", "");
                     sb.append(baseSql.substring(0, baseSql.indexOf("WHERE"))).append("base INNER JOIN ").append(tableInfo.getTableName())
-                            .append("_i18n i18n ON base.id = i18n.id ").append(baseSql.substring(baseSql.indexOf("WHERE")).replaceFirst("id", "base.id")).append(" AND i18n.language = ?;");
+                            .append("_i18n i18n ON base.id = i18n.id ").append(replaceColumnWithTableAlias(baseSql.substring(baseSql.indexOf("WHERE")), "id", "base", "")).append(" AND i18n.language = ?;");
                 } else {
                     String sqlHeader = baseSql.substring(0, baseSql.indexOf("FROM"));
 
                     for (TableFieldInfo tableFieldInfo : tableFieldInfoList) {
                         if (i18nFieldList.contains(tableFieldInfo.getProperty())) {
                             //i18n的多语言field和base表的多语言field都拿出来
-                            sqlHeader = replaceColumnWithTableAlias(sqlHeader, tableFieldInfo.getColumn(), "i18n", ",base." + tableFieldInfo.getColumn() + " AS base_" + tableFieldInfo.getProperty());
+                            sqlHeader = replaceColumnWithTableAlias(sqlHeader, tableFieldInfo.getColumn().replaceAll("`", ""), "i18n", ",base." + tableFieldInfo.getColumn() + " AS base_" + tableFieldInfo.getProperty());
                         } else {
-                            sqlHeader = replaceColumnWithTableAlias(sqlHeader, tableFieldInfo.getColumn(), "base", "");
+                            sqlHeader = replaceColumnWithTableAlias(sqlHeader, tableFieldInfo.getColumn().replaceAll("`", ""), "base", "");
                         }
-                        sqlWhere = replaceColumnWithTableAlias(sqlWhere, tableFieldInfo.getColumn().replaceAll("`", ""), "base", "").replaceAll("`", "");
+                        sqlWhere = replaceColumnWithTableAlias(sqlWhere.replaceAll("`", ""), tableFieldInfo.getColumn().replaceAll("`", ""), "base", "");
+
                     }
                     //id特殊处理
-                    if (!Character.isLowerCase(sqlWhere.charAt(sqlWhere.indexOf("id") - 1)) && !Character.isLowerCase(sqlWhere.charAt(sqlWhere.indexOf("id") + 2))) {
-                        sqlWhere = sqlWhere.replaceFirst("id", "base.id");
-                    }                    sqlHeader = sqlHeader.replaceFirst("id", "base.id");
+                    sqlWhere = replaceColumnWithTableAlias(sqlWhere, "id", "base", "");
+                    sqlHeader = replaceColumnWithTableAlias(sqlHeader, "id", "base", "");
                     sb.append(sqlHeader).append(",i18n.language FROM ").append(tableInfo.getTableName()).append(" base INNER JOIN ").append(tableInfo.getTableName())
                             .append("_i18n i18n  ON base.id = i18n.id ").append(sqlWhere).append(";");
                 }
@@ -335,14 +336,14 @@ public class I18nSqlProcessInterceptor implements Interceptor {
      * @param sqlStr     原始Sql
      * @param column     column
      * @param tableAlias 表别名
-     * @param additonStr 附加Str
+     * @param additionStr 附加Str
      * @return
      */
-    private String replaceColumnWithTableAlias(String sqlStr, String column, String tableAlias, String additonStr) {
-        if (sqlStr.contains("_" + column) || sqlStr.contains(column + "_")) {
-            sqlStr = sqlStr.replaceFirst("," + column, "," + tableAlias + "." + column + additonStr);
-        } else {
-            sqlStr = sqlStr.replaceFirst(column, tableAlias + "." + column + additonStr);
+    private String replaceColumnWithTableAlias(String sqlStr, String column, String tableAlias, String additionStr) {
+        //sqlStr包含column
+        if (sqlStr.indexOf(column) != -1) {
+            String regex = "\\b" + column + "\\b";
+            sqlStr = sqlStr.replaceFirst(regex, tableAlias + "." + column + additionStr);
         }
         return sqlStr;
     }
@@ -392,10 +393,6 @@ public class I18nSqlProcessInterceptor implements Interceptor {
         }
     }
 
-    private void execUpdateOneSql(String language, Map<String, String> fieldValueMap, String baseTableName, Connection connection, Long baseTableId) {
-
-    }
-
     /**
      * 将原始metaData(Map<String,List<Map<String,String>>>)转换成Map<String, Map<String, String>>
      *
@@ -436,6 +433,9 @@ public class I18nSqlProcessInterceptor implements Interceptor {
         map.forEach((id, subMap) -> {
             try {
                 Object result = domainClass.newInstance();
+                if (null == BaseI18nService2.i18nDomainMethodCache.get(domainClass)) {
+                    throw new SqlProcessInterceptorException(domainClass.getName() + "尚未初始化,请检查!");
+                }
                 Invoker idSetMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(ID_CONSTANT);
                 Object[] param = {id};
                 idSetMethodInvoker.invoke(result, param);

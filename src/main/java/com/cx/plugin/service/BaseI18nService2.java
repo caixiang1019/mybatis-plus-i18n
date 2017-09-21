@@ -164,6 +164,9 @@ public class BaseI18nService2 {
             ResultSet resultSet = psm.executeQuery();
             while (resultSet.next()) {
                 Object result = clazz.newInstance();
+                if (null == i18nDomainMethodCache.get(clazz)) {
+                    throw new SqlProcessInterceptorException(clazz.getName() + "尚未初始化,请检查!");
+                }
                 i18nFieldNameList.forEach(t -> {
                     Invoker setMethodInvoker = i18nDomainMethodCache.get(clazz).getSetInvoker(t);
                     try {

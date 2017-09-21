@@ -1,6 +1,7 @@
 package com.cx.plugin.util;
 
 import com.baomidou.mybatisplus.entity.TableFieldInfo;
+import com.cx.plugin.exception.SqlProcessInterceptorException;
 import com.cx.plugin.service.BaseI18nService2;
 import org.apache.ibatis.reflection.invoker.Invoker;
 import org.apache.ibatis.reflection.invoker.MethodInvoker;
@@ -150,6 +151,9 @@ public class SqlExecuteUtil {
             ResultSet resultSet = psm.executeQuery();
             while (resultSet.next()) {
                 Object result = domainClass.newInstance();
+                if (null == BaseI18nService2.i18nDomainMethodCache.get(domainClass)) {
+                    throw new SqlProcessInterceptorException(domainClass.getName() + "尚未初始化,请检查!");
+                }
                 tableFieldInfoList.forEach(t -> {
                     Invoker setMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(t.getProperty());
                     try {
