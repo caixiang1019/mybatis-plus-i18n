@@ -1,12 +1,16 @@
 package com.cx.plugin.plugins;
 
+import com.baomidou.mybatisplus.MybatisDefaultParameterHandler;
 import com.baomidou.mybatisplus.entity.TableFieldInfo;
 import com.baomidou.mybatisplus.entity.TableInfo;
+import com.baomidou.mybatisplus.enums.DBType;
 import com.baomidou.mybatisplus.enums.SqlMethod;
 import com.baomidou.mybatisplus.mapper.EntityWrapper;
-import com.baomidou.mybatisplus.toolkit.CollectionUtils;
-import com.baomidou.mybatisplus.toolkit.StringUtils;
-import com.baomidou.mybatisplus.toolkit.TableInfoHelper;
+import com.baomidou.mybatisplus.parser.AbstractSqlParser;
+import com.baomidou.mybatisplus.parser.SqlInfo;
+import com.baomidou.mybatisplus.plugins.pagination.DialectFactory;
+import com.baomidou.mybatisplus.plugins.pagination.Pagination;
+import com.baomidou.mybatisplus.toolkit.*;
 import com.cx.plugin.annotations.I18nField;
 import com.cx.plugin.domain.BaseI18nDomain;
 import com.cx.plugin.domain.BaseI18nMetaData;
@@ -25,6 +29,7 @@ import org.apache.ibatis.mapping.SqlCommandType;
 import org.apache.ibatis.plugin.*;
 import org.apache.ibatis.reflection.invoker.Invoker;
 import org.apache.ibatis.reflection.invoker.MethodInvoker;
+import org.apache.ibatis.scripting.defaults.DefaultParameterHandler;
 import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -32,6 +37,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -50,6 +56,15 @@ public class I18nSqlProcessInterceptor implements Interceptor {
     private static final String VALUE_CONSTANT = "value";
     private static final String DELIMITER_DOT = ".";
 
+    /* 方言类型 */
+    private String dialectType;
+    /* 方言实现类 */
+    private String dialectClazz;
+    // COUNT SQL 解析
+    private AbstractSqlParser sqlParser;
+    /* 溢出总页数，设置第一页 */
+    private boolean overflowCurrent = false;
+
     private TableInfo tableInfo;
     private String baseMethodStr;
     private MappedStatement ms;
@@ -67,7 +82,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
         supportedOperationMap.put(SqlCommandType.INSERT, new String[]{SqlMethod.INSERT_ONE.getMethod(), SqlMethod.INSERT_ONE_ALL_COLUMN.getMethod()});
         supportedOperationMap.put(SqlCommandType.UPDATE, new String[]{SqlMethod.UPDATE.getMethod(), SqlMethod.UPDATE_ALL_COLUMN_BY_ID.getMethod(), SqlMethod.UPDATE_BY_ID.getMethod()});
         supportedOperationMap.put(SqlCommandType.DELETE, new String[]{SqlMethod.DELETE.getMethod(), SqlMethod.DELETE_BY_ID.getMethod(), SqlMethod.DELETE_BY_MAP.getMethod()});
-        supportedOperationMap.put(SqlCommandType.SELECT, new String[]{SqlMethod.SELECT_BY_ID.getMethod(), SqlMethod.SELECT_LIST.getMethod(), SqlMethod.SELECT_ONE.getMethod(), SqlMethod.SELECT_MAPS.getMethod()});
+        supportedOperationMap.put(SqlCommandType.SELECT, new String[]{SqlMethod.SELECT_BY_ID.getMethod(), SqlMethod.SELECT_LIST.getMethod(), SqlMethod.SELECT_ONE.getMethod(), SqlMethod.SELECT_MAPS.getMethod(), SqlMethod.SELECT_PAGE.getMethod(), SqlMethod.SELECT_MAPS_PAGE.getMethod()});
     }
 
     @Override
@@ -211,39 +226,88 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                         //selectOne,selectList
                         MapperMethod.ParamMap parameterMap = (MapperMethod.ParamMap) boundSql.getParameterObject();
                         Object ew = parameterMap.get("ew");
-                        if (domainClass.isAssignableFrom(ew.getClass())) {
-                            //mapper.selectOne
-                            List<ParameterMapping> parameterMappingList = boundSql.getParameterMappings();
-                            List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty()).collect(Collectors.toList());
+                        if (ew != null) {
+                            if (domainClass.isAssignableFrom(ew.getClass())) {
+                                //mapper.selectOne
+                                List<ParameterMapping> parameterMappingList = boundSql.getParameterMappings();
+                                List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty()).collect(Collectors.toList());
 
-                            String sqlWhere = baseSql.substring(baseSql.indexOf("WHERE"));
-                            List<String> actualParameterList = parametersStrList.stream().filter(s -> s.contains("ew"))
-                                    .map(s -> s.substring(s.lastIndexOf(DELIMITER_DOT) + 1)).collect(Collectors.toList());
-                            //只取ew.XXX
-                            List<Object> valueList = actualParameterList.stream().map(p -> ReflectionUtil.getMethodValue(ew, p)).collect(Collectors.toList());
-                            String selectSql = getSqlFromBaseSql(baseSql, SqlCommandType.SELECT, tableFieldInfoList, i18nFieldList, sqlWhere);
-                            Map<Long, Map<String, Object>> map = SqlExecuteUtil.executeForMapWithManyParameters(connection, selectSql, valueList, tableFieldInfoList, i18nFieldList);
-                            List<Object> resultList = convertBaseMap2List(map);
-                            if (CollectionUtils.isNotEmpty(resultList)) {
-                                return resultList;
-                            }
-                        } else if (EntityWrapper.class.isAssignableFrom(ew.getClass())) {
-                            //serviceImpl.selectOne
-                            EntityWrapper entityWrapper = (EntityWrapper) ew;
-                            String sqlWhere = entityWrapper.getSqlSegment();
-                            HashMap<String, String> paramValuePairs = (HashMap) entityWrapper.getParamNameValuePairs();
-                            for (Map.Entry e : paramValuePairs.entrySet()) {
-                                sqlWhere = sqlWhere.replace("#{ew.paramNameValuePairs." + e.getKey() + "}", "'" + e.getValue() + "'");
-                            }
-                            String selectSql = getSqlFromBaseSql(baseSql, SqlCommandType.SELECT, tableFieldInfoList, i18nFieldList, sqlWhere);
+                                String sqlWhere = baseSql.substring(baseSql.indexOf("WHERE"));
+                                List<String> actualParameterList = parametersStrList.stream().filter(s -> s.contains("ew"))
+                                        .map(s -> s.substring(s.lastIndexOf(DELIMITER_DOT) + 1)).collect(Collectors.toList());
+                                //只取ew.XXX
+                                List<Object> valueList = actualParameterList.stream().map(p -> ReflectionUtil.getMethodValue(ew, p)).collect(Collectors.toList());
+                                String selectSql = getSqlFromBaseSql(baseSql, SqlCommandType.SELECT, tableFieldInfoList, i18nFieldList, sqlWhere);
+                                Map<Long, Map<String, Object>> map = SqlExecuteUtil.executeForMapWithManyParameters(connection, selectSql, valueList, tableFieldInfoList, i18nFieldList);
+                                List<Object> resultList = convertBaseMap2List(map, null);
+                                if (CollectionUtils.isNotEmpty(resultList)) {
+                                    return resultList;
+                                }
+                            } else if (EntityWrapper.class.isAssignableFrom(ew.getClass())) {
+                                EntityWrapper entityWrapper = (EntityWrapper) ew;
+                                //serviceImpl.selectOne
+                                //根据RowBounds判断是否分页
+                                RowBounds pageParameter = (RowBounds) invocation.getArgs()[2];
+                                if (pageParameter != null && pageParameter != RowBounds.DEFAULT) {
+                                    String originalSql = baseSql;
+                                    DBType dbType = StringUtils.isNotEmpty(dialectType) ? DBType.getDBType(dialectType) : JdbcUtils.getDbType(connection.getMetaData().getURL());
+                                    //判断怎么分页
+                                    if (pageParameter instanceof Pagination) {
+                                        Pagination page = (Pagination) pageParameter;
+                                        boolean orderBy = true;
+                                        if (page.isSearchCount()) {
+                                            SqlInfo sqlInfo = SqlUtils.getCountOptimize(sqlParser, originalSql);
+                                            orderBy = sqlInfo.isOrderBy();
+                                            this.queryTotal(overflowCurrent, sqlInfo.getSql(), ms, boundSql, page, connection);
+                                            if (page.getTotal() <= 0) {
+                                                return invocation.proceed();
+                                            }
+                                        }
+                                        String buildSql = SqlUtils.concatOrderBy(originalSql, page, orderBy);
+                                        originalSql = DialectFactory.buildPaginationSql(page, buildSql, dbType, dialectClazz);
+                                    } else {
+                                        // support physical Pagination for RowBounds
+                                        originalSql = DialectFactory.buildPaginationSql(pageParameter, originalSql, dbType, dialectClazz);
+                                    }
+                                    Object et = entityWrapper.getEntity();
+                                    List<ParameterMapping> parameterMappingList = boundSql.getParameterMappings();
+                                    List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty()).collect(Collectors.toList());
 
-                            Map<Long, Map<String, Object>> map = SqlExecuteUtil.executeForMapWithoutParameters(connection, selectSql, tableFieldInfoList, i18nFieldList);
-                            List<Object> resultList = convertBaseMap2List(map);
-                            if (CollectionUtils.isNotEmpty(resultList)) {
-                                return resultList;
+                                    List<String> actualParameterList = parametersStrList.stream().filter(s -> s.contains("ew.entity"))
+                                            .map(s -> s.substring(s.lastIndexOf(DELIMITER_DOT) + 1)).collect(Collectors.toList());
+                                    //只取ew.XXX
+                                    List<Object> valueList = actualParameterList.stream().map(p -> ReflectionUtil.getMethodValue(et, p)).collect(Collectors.toList());
+                                    List<Long> idList = SqlExecuteUtil.executeForIdsWithParameters(connection, valueList, originalSql);
+                                    //这里不要LIMIT
+                                    String sqlWhere = baseSql.substring(baseSql.indexOf("WHERE"));
+                                    String selectSql = getSqlFromBaseSql(baseSql, SqlCommandType.SELECT, tableFieldInfoList, i18nFieldList, sqlWhere);
+                                    Map<Long, Map<String, Object>> map = SqlExecuteUtil.executeForMapWithManyParameters(connection, selectSql, valueList, tableFieldInfoList, i18nFieldList);
+
+                                    List<Object> resultList = convertBaseMap2List(map, idList);
+                                    if (CollectionUtils.isNotEmpty(resultList)) {
+                                        return resultList;
+                                    }
+
+                                } else {
+                                    String sqlWhere = entityWrapper.getSqlSegment();
+                                    HashMap<String, String> paramValuePairs = (HashMap) entityWrapper.getParamNameValuePairs();
+                                    for (Map.Entry e : paramValuePairs.entrySet()) {
+                                        sqlWhere = sqlWhere.replace("#{ew.paramNameValuePairs." + e.getKey() + "}", "'" + e.getValue() + "'");
+                                    }
+                                    String selectSql = getSqlFromBaseSql(baseSql, SqlCommandType.SELECT, tableFieldInfoList, i18nFieldList, sqlWhere);
+
+                                    Map<Long, Map<String, Object>> map = SqlExecuteUtil.executeForMapWithoutParameters(connection, selectSql, tableFieldInfoList, i18nFieldList);
+                                    List<Object> resultList = convertBaseMap2List(map, null);
+                                    if (CollectionUtils.isNotEmpty(resultList)) {
+                                        return resultList;
+                                    }
+                                }
                             }
+                        } else {
+                            //对于ew为null情形暂不支持
+                            log.info("I18n interceptor not support select without Entitywrapper temporarily!");
+                            return invocation.proceed();
                         }
-
                     } else {
                         log.info("Parameter'class: " + parameterClass.getName() + ",i18n interceptor is not supported for this api now!");
                     }
@@ -286,7 +350,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                     }
                     //id特殊处理
                     baseSql = replaceColumnWithTableAlias(baseSql, "id", "base", "");
-                    sb.append(baseSql.substring(0, baseSql.indexOf("WHERE"))).append("base INNER JOIN ").append(tableInfo.getTableName())
+                    sb.append(baseSql.substring(0, baseSql.indexOf("WHERE"))).append("base LEFT JOIN ").append(tableInfo.getTableName())
                             .append("_i18n i18n ON base.id = i18n.id ").append(replaceColumnWithTableAlias(baseSql.substring(baseSql.indexOf("WHERE")), "id", "base", "")).append(" AND i18n.language = ?;");
                 } else {
                     String sqlHeader = baseSql.substring(0, baseSql.indexOf("FROM"));
@@ -304,7 +368,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                     //id特殊处理
                     sqlWhere = replaceColumnWithTableAlias(sqlWhere, "id", "base", "");
                     sqlHeader = replaceColumnWithTableAlias(sqlHeader, "id", "base", "");
-                    sb.append(sqlHeader).append(",i18n.language FROM ").append(tableInfo.getTableName()).append(" base INNER JOIN ").append(tableInfo.getTableName())
+                    sb.append(sqlHeader).append(",i18n.language FROM ").append(tableInfo.getTableName()).append(" base LEFT JOIN ").append(tableInfo.getTableName())
                             .append("_i18n i18n  ON base.id = i18n.id ").append(sqlWhere).append(";");
                 }
                 break;
@@ -400,8 +464,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
      * @param i18nFieldNameList class含@I18nField注解的fieldNameList
      * @return
      */
-    private Map<String, Map<String, String>> constructMetaDataMap(Object
-                                                                          parameter, List<String> i18nFieldNameList) {
+    private Map<String, Map<String, String>> constructMetaDataMap(Object parameter, List<String> i18nFieldNameList) {
         HashMap<String, List<HashMap<String, String>>> metaData = (HashMap) ((BaseI18nDomain) parameter).getI18n();
         List<BaseI18nMetaData> baseI18nMetaDataList = new ArrayList<>();
         metaData.forEach((k, v) -> v.forEach(p -> {
@@ -425,47 +488,65 @@ public class I18nSqlProcessInterceptor implements Interceptor {
 
     /**
      * @param map
+     * @param idList
      * @return
      */
 
-    private List convertBaseMap2List(Map<Long, Map<String, Object>> map) {
+    private List convertBaseMap2List(Map<Long, Map<String, Object>> map, List<Long> idList) {
         List<Object> resultList = new ArrayList<>();
-        map.forEach((id, subMap) -> {
-            try {
-                Object result = domainClass.newInstance();
-                if (null == BaseI18nService2.i18nDomainMethodCache.get(domainClass)) {
-                    throw new SqlProcessInterceptorException(domainClass.getName() + "尚未初始化,请检查!");
+        if (CollectionUtils.isEmpty(idList)) {
+            map.forEach((id, subMap) -> getResultListFromMap(id, subMap, resultList));
+        } else {
+            idList.forEach(i -> {
+                Map<String, Object> subMap = map.get(i);
+                if (subMap != null) {
+                    getResultListFromMap(i, subMap, resultList);
                 }
-                Invoker idSetMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(ID_CONSTANT);
-                Object[] param = {id};
-                idSetMethodInvoker.invoke(result, param);
+            });
+        }
 
-                subMap.forEach((fieldName, filedValue) -> {
-                    Invoker setMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(fieldName);
-                    try {
-                        if (setMethodInvoker instanceof MethodInvoker) {
-                            ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, filedValue, fieldName, result);
-                        } else {
-                            Object[] paramField = {filedValue};
-                            setMethodInvoker.invoke(result, paramField);
-                        }
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
-                    } catch (InvocationTargetException e) {
-                        e.printStackTrace();
-                    }
-                });
-                resultList.add(result);
-            } catch (InstantiationException e) {
-                e.printStackTrace();
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            } catch (InvocationTargetException e) {
-                e.printStackTrace();
-            }
-
-        });
         return resultList;
+    }
+
+    /**
+     * @param id         id
+     * @param subMap     属性子map
+     * @param resultList 结果list
+     */
+    private void getResultListFromMap(Long id, Map<String, Object> subMap, List<Object> resultList) {
+        try {
+            Object result = domainClass.newInstance();
+            if (null == BaseI18nService2.i18nDomainMethodCache.get(domainClass)) {
+                throw new SqlProcessInterceptorException(domainClass.getName() + "尚未初始化,请检查!");
+            }
+            Invoker idSetMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(ID_CONSTANT);
+            Object[] param = {id};
+            idSetMethodInvoker.invoke(result, param);
+
+            subMap.forEach((fieldName, filedValue) -> {
+                Invoker setMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(fieldName);
+                try {
+                    if (setMethodInvoker instanceof MethodInvoker) {
+                        ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, filedValue, fieldName, result);
+                    } else {
+                        Object[] paramField = {filedValue};
+                        setMethodInvoker.invoke(result, paramField);
+                    }
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                } catch (InvocationTargetException e) {
+                    e.printStackTrace();
+                }
+            });
+            resultList.add(result);
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+
     }
 
     /**
@@ -483,13 +564,47 @@ public class I18nSqlProcessInterceptor implements Interceptor {
         return Arrays.asList(methodArray).contains(methodStr);
     }
 
+    /**
+     * 查询总记录条数
+     *
+     * @param sql
+     * @param mappedStatement
+     * @param boundSql
+     * @param page
+     */
+    protected void queryTotal(boolean overflowCurrent, String sql, MappedStatement mappedStatement, BoundSql boundSql, Pagination page, Connection connection) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            DefaultParameterHandler parameterHandler = new MybatisDefaultParameterHandler(mappedStatement, boundSql.getParameterObject(), boundSql);
+            parameterHandler.setParameters(statement);
+            int total = 0;
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    total = resultSet.getInt(1);
+                }
+            }
+            page.setTotal(total);
+            /*
+             * 溢出总页数，设置第一页
+			 */
+            int pages = page.getPages();
+            if (overflowCurrent && (page.getCurrent() > pages)) {
+                page = new Pagination(1, page.getSize());
+                page.setTotal(total);
+            }
+        } catch (Exception e) {
+            log.error("Error: Method queryTotal execution error !", e);
+        }
+    }
+
     private void init(Invocation invocation) {
         parameter = invocation.getArgs()[1];
         ms = (MappedStatement) invocation.getArgs()[0];
 
         //基本方法名
         baseMethodStr = ms.getId().substring(ms.getId().lastIndexOf(DELIMITER_DOT) + 1);
-        parameterClass = parameter.getClass();
+        if (parameter != null) {
+            parameterClass = parameter.getClass();
+        }
         Executor executor = (Executor) invocation.getTarget();
         try {
             connection = executor.getTransaction().getConnection();
@@ -518,7 +633,30 @@ public class I18nSqlProcessInterceptor implements Interceptor {
 
     @Override
     public void setProperties(Properties properties) {
-        //do not need properties temporarily
+        String dialectType = properties.getProperty("dialectType");
+        String dialectClazz = properties.getProperty("dialectClazz");
+
+        if (StringUtils.isNotEmpty(dialectType)) {
+            this.dialectType = dialectType;
+        }
+        if (StringUtils.isNotEmpty(dialectClazz)) {
+            this.dialectClazz = dialectClazz;
+        }
     }
 
+    public void setDialectType(String dialectType) {
+        this.dialectType = dialectType;
+    }
+
+    public void setDialectClazz(String dialectClazz) {
+        this.dialectClazz = dialectClazz;
+    }
+
+    public void setOverflowCurrent(boolean overflowCurrent) {
+        this.overflowCurrent = overflowCurrent;
+    }
+
+    public void setSqlParser(AbstractSqlParser sqlParser) {
+        this.sqlParser = sqlParser;
+    }
 }

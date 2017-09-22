@@ -103,4 +103,19 @@ public class ArtDep extends BaseI18nDomain {
     public void setCreatedDate(DateTime createdDate) {
         this.createdDate = createdDate;
     }
+
+    @Override
+    public String toString() {
+        return "ArtDep{" +
+                "id=" + id +
+                ", depName='" + depName + '\'' +
+                ", depCode='" + depCode + '\'' +
+                ", depCountry='" + depCountry + '\'' +
+                ", phone='" + phone + '\'' +
+                ", address='" + address + '\'' +
+                ", age=" + age +
+                ", isDeleted=" + isDeleted +
+                ", createdDate=" + createdDate +
+                '}';
+    }
 }

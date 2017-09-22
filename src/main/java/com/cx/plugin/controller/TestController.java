@@ -11,7 +11,6 @@ import com.cx.plugin.persistence.service.ArtCompanyService;
 import com.cx.plugin.persistence.service.ArtCompanyService2;
 import com.cx.plugin.persistence.service.ArtDepService;
 import com.cx.plugin.service.BaseI18nService2;
-import org.apache.ibatis.session.RowBounds;
 import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -248,4 +247,22 @@ public class TestController {
         Page page = new Page(2,3);
         return artDepMapper.selectPage(page, new EntityWrapper<>(artDep));
     }
+
+    @GetMapping(value = "selectPageMap")
+    public String selectPage2(@RequestParam Integer age){
+        ArtDep artDep = new ArtDep();
+        artDep.setAge(age);
+        artDep.setDepCode("XZB");
+        artDep.setCreatedDate(null);
+        Page page = new Page(2,3);
+
+        List<Map<String,Object>> list = artDepMapper.selectMapsPage(page, new EntityWrapper<>(artDep));
+        return list.toString();
+    }
+
+    @GetMapping(value = "noneParameterTest")
+    public String noneParameterTest(){
+        return artDepMapper.testId();
+    }
+
 }

@@ -12,4 +12,6 @@ public interface ArtDepMapper extends BaseMapper<ArtDep> {
 
     void updateLogicDelete(Long id);
 
+    String testId();
+
 }
