@@ -4,6 +4,7 @@ import com.alibaba.druid.pool.DruidDataSource;
 import com.baomidou.mybatisplus.MybatisConfiguration;
 import com.baomidou.mybatisplus.MybatisXMLLanguageDriver;
 import com.baomidou.mybatisplus.entity.GlobalConfiguration;
+import com.baomidou.mybatisplus.plugins.PaginationInterceptor;
 import com.baomidou.mybatisplus.plugins.PerformanceInterceptor;
 import com.baomidou.mybatisplus.plugins.SqlExplainInterceptor;
 import com.baomidou.mybatisplus.spring.MybatisSqlSessionFactoryBean;
@@ -82,9 +83,9 @@ public class MybatisI18NConfig {
     @Bean
     public Interceptor[] getInterceptors() {
         List<Interceptor> interceptors = new ArrayList<Interceptor>();
-//        PaginationInterceptor paginationInterceptor = new PaginationInterceptor();
-//        paginationInterceptor.setDialectType("mysql");
-//        interceptors.add(paginationInterceptor);
+        PaginationInterceptor paginationInterceptor = new PaginationInterceptor();
+        paginationInterceptor.setDialectType("mysql");
+        interceptors.add(paginationInterceptor);
 
         // Disabled on Production and Stage env
 //        // Performance Analysis Plugins

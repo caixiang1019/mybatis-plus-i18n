@@ -17,6 +17,7 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Stream;
 
 /**
  * Created by caixiang on 2017/8/15.
@@ -264,7 +265,7 @@ public class ReflectionUtil {
     }
 
     /**
-     * 获取指定包下父类为supClazz的所有类的属性的get&set方法,组装成方便使用的Reflctor对象
+     * 获取指定包下父类为supClazz的所有类的属性的get&set方法,组装成方便使用的Reflector对象
      *
      * @param packagePath 不能为null
      * @param supClazz    父类Class
@@ -274,14 +275,16 @@ public class ReflectionUtil {
         if (StringUtils.isEmpty(packagePath)) {
             throw new ReflectException("Can not find domain package path which needs to be initialized!");
         }
-        List<Class<?>> classList = PackageScannerUtil.getClassFromSuperClass(packagePath, supClazz);
-        if (CollectionUtils.isEmpty(classList)) {
-            throw new ReflectException("Can not find specific class which needs to be initialized!");
-        }
         ConcurrentHashMap<Class<?>, Reflector> map = new ConcurrentHashMap<>();
-        classList.forEach(clz -> {
-            map.put(clz, new Reflector(clz));
+        String[] packageArray = packagePath.split(",");
+        Stream.of(packageArray).forEach(p -> {
+            List<Class<?>> classList = PackageScannerUtil.getClassFromSuperClass(p, supClazz);
+            if (CollectionUtils.isEmpty(classList)) {
+                log.warn("packagePath: " + p + ",Can not find specific class which needs to be initialized!");
+            }
+            classList.forEach(clz -> map.put(clz, new Reflector(clz)));
         });
+
         return map;
     }
 
@@ -309,7 +312,7 @@ public class ReflectionUtil {
                 if (parameterClazz == UUID.class) {
                     paramField = new Object[]{UUID.fromString((String) resultSet.getObject(property))};
                     setMethodInvoker.invoke(result, paramField);
-                } else if(parameterClazz == DateTime.class){
+                } else if (parameterClazz == DateTime.class) {
                     paramField = new Object[]{new DateTime(resultSet.getObject(property))};
                 } else {
                     paramField = new Object[]{resultSet.getObject(property)};
@@ -317,7 +320,7 @@ public class ReflectionUtil {
             } else {
                 if (parameterClazz == UUID.class) {
                     paramField = new Object[]{UUID.fromString(String.valueOf(data))};
-                } else if(parameterClazz == DateTime.class){
+                } else if (parameterClazz == DateTime.class) {
                     paramField = new Object[]{new DateTime(data)};
                 } else {
                     paramField = new Object[]{data};

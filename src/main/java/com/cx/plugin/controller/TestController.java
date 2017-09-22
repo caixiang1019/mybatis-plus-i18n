@@ -1,6 +1,7 @@
 package com.cx.plugin.controller;
 
 import com.baomidou.mybatisplus.mapper.EntityWrapper;
+import com.baomidou.mybatisplus.plugins.Page;
 import com.cx.plugin.domain.ArtCompany;
 import com.cx.plugin.domain.ArtDep;
 import com.cx.plugin.domain.TestArtCompany;
@@ -10,6 +11,7 @@ import com.cx.plugin.persistence.service.ArtCompanyService;
 import com.cx.plugin.persistence.service.ArtCompanyService2;
 import com.cx.plugin.persistence.service.ArtDepService;
 import com.cx.plugin.service.BaseI18nService2;
+import org.apache.ibatis.session.RowBounds;
 import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -236,6 +238,14 @@ public class TestController {
     @RequestMapping(value = "add3", method = RequestMethod.POST)
     public Boolean addArtCompany3(@RequestBody ArtCompany artCompany) {
         return artCompanyService2.insert(artCompany);
+    }
 
+    @GetMapping(value = "selectPage")
+    public List<ArtDep> selectPage(@RequestParam Integer age){
+        ArtDep artDep = new ArtDep();
+        artDep.setAge(age);
+        artDep.setCreatedDate(null);
+        Page page = new Page(2,3);
+        return artDepMapper.selectPage(page, new EntityWrapper<>(artDep));
     }
 }

@@ -294,7 +294,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                     for (TableFieldInfo tableFieldInfo : tableFieldInfoList) {
                         if (i18nFieldList.contains(tableFieldInfo.getProperty())) {
                             //i18n的多语言field和base表的多语言field都拿出来
-                            sqlHeader = replaceColumnWithTableAlias(sqlHeader, tableFieldInfo.getColumn().replaceAll("`", ""), "i18n", ",base." + tableFieldInfo.getColumn() + " AS base_" + tableFieldInfo.getProperty());
+                            sqlHeader = replaceColumnWithTableAlias(sqlHeader, tableFieldInfo.getColumn().replaceAll("`", ""), "i18n", "base." + tableFieldInfo.getColumn() + " AS base_" + tableFieldInfo.getProperty() + ",");
                         } else {
                             sqlHeader = replaceColumnWithTableAlias(sqlHeader, tableFieldInfo.getColumn().replaceAll("`", ""), "base", "");
                         }
@@ -333,17 +333,17 @@ public class I18nSqlProcessInterceptor implements Interceptor {
     /**
      * 针对column可能出现的真包含做的replace处理
      *
-     * @param sqlStr     原始Sql
-     * @param column     column
-     * @param tableAlias 表别名
-     * @param additionStr 附加Str
+     * @param sqlStr      原始Sql
+     * @param column      column
+     * @param tableAlias  表别名
+     * @param additionStr 附加Str,备注:需要前置.当column有AS别名时,后置会有bug
      * @return
      */
     private String replaceColumnWithTableAlias(String sqlStr, String column, String tableAlias, String additionStr) {
         //sqlStr包含column
         if (sqlStr.indexOf(column) != -1) {
             String regex = "\\b" + column + "\\b";
-            sqlStr = sqlStr.replaceFirst(regex, tableAlias + "." + column + additionStr);
+            sqlStr = sqlStr.replaceFirst(regex, additionStr + tableAlias + "." + column);
         }
         return sqlStr;
     }
