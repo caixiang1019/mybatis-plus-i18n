@@ -9,15 +9,12 @@ import com.cx.plugin.exception.SqlProcessInterceptorException;
 import com.cx.plugin.util.ReflectionUtil;
 import com.cx.plugin.util.SqlExecuteUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
 import org.apache.ibatis.reflection.Reflector;
 import org.apache.ibatis.reflection.invoker.Invoker;
 import org.apache.ibatis.reflection.invoker.MethodInvoker;
 import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import javax.sql.DataSource;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
@@ -38,25 +35,14 @@ public class BaseI18nService2 {
 
     private static final String ID_CONSTANT = "id";
 
-    private Environment env;
     private DataSource dataSource;
 
     public static ConcurrentMap<Class<?>, Reflector> i18nDomainMethodCache = new ConcurrentHashMap<>();
 
-    public BaseI18nService2(Environment env, DataSource dataSource) {
-        this.env = env;
+    public BaseI18nService2(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
-    @PostConstruct
-    public void initI18nDomainMethod() {
-        if (StringUtils.isNotEmpty(env.getProperty("i18n.domain.package"))) {
-            //方法缓存
-            i18nDomainMethodCache = ReflectionUtil.getReflectorsFromPackage(env.getProperty("i18n.domain.package"), BaseI18nDomain.class);
-        } else {
-            log.info("I18n.domain.package is not configured,if not use i18n interceptor,that's ok!");
-        }
-    }
 
     /**
      * 若根据id和language匹配不到记录,返回传入的entity,不再多处理了,减少一次查询

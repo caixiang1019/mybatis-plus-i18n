@@ -8,7 +8,9 @@ import com.baomidou.mybatisplus.plugins.PaginationInterceptor;
 import com.baomidou.mybatisplus.plugins.PerformanceInterceptor;
 import com.baomidou.mybatisplus.plugins.SqlExplainInterceptor;
 import com.baomidou.mybatisplus.spring.MybatisSqlSessionFactoryBean;
+import com.cx.plugin.annotations.I18nDomainScan;
 import com.cx.plugin.plugins.I18nSqlProcessInterceptor;
+import com.cx.plugin.web.resolver.HeliosLocaleResolver;
 import org.apache.ibatis.plugin.Interceptor;
 import org.mybatis.spring.annotation.MapperScan;
 import org.mybatis.spring.boot.autoconfigure.MybatisProperties;
@@ -16,9 +18,11 @@ import org.mybatis.spring.boot.autoconfigure.SpringBootVFS;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.web.servlet.LocaleResolver;
 
 import javax.sql.DataSource;
 import java.util.ArrayList;
@@ -29,6 +33,7 @@ import java.util.Properties;
  * Created by caixiang on 2017/8/15.
  */
 @Configuration
+@I18nDomainScan("com.cx.plugin.domain")
 @MapperScan("com.cx.plugin.persistence.mapper")
 public class MybatisI18NConfig {
 
@@ -105,5 +110,10 @@ public class MybatisI18NConfig {
         interceptors.add(i18NSqlProcessInterceptor);
         return interceptors.toArray(new Interceptor[]{});
     }
+
+//    @Bean
+//    public LocaleResolver localeResolver(){
+//        return new HeliosLocaleResolver();
+//    }
 
 }

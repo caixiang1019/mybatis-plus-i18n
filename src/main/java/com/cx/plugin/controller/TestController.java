@@ -13,12 +13,10 @@ import com.cx.plugin.persistence.service.ArtDepService;
 import com.cx.plugin.service.BaseI18nService2;
 import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by caixiang on 2017/8/15.
@@ -96,6 +94,18 @@ public class TestController {
         return artDep.toString();
     }
 
+    @RequestMapping(value = "selectOne3", method = RequestMethod.GET)
+    public String selectOne3(@RequestParam(value = "id") Long id) {
+        ArtCompany artCompany2 = new ArtCompany();
+        artCompany2.setId(id);
+        artCompany2.setName("蔡翔");
+        ArtCompany artCompany = artCompanyService.selectOne(new EntityWrapper<>(artCompany2));
+
+        if (artCompany == null)
+            return null;
+        return artCompany.toString();
+    }
+
     @RequestMapping(value = "selectOne", method = RequestMethod.GET)
     public String selectOne(@RequestParam(value = "id") Long id) {
         ArtCompany artCompany = artCompanyService.selectOne(new EntityWrapper<ArtCompany>().eq("id", id).eq("name", "蔡翔"));
@@ -117,7 +127,9 @@ public class TestController {
 
     @RequestMapping(value = "selectList", method = RequestMethod.GET)
     public String selectArtDep(@RequestParam(value = "age") Integer age) {
-        List<ArtDep> artDepList = artDepService.selectList(new EntityWrapper<ArtDep>().eq("age", age));
+        ArtDep artDep = new ArtDep();
+        artDep.setAge(age);
+        List<ArtDep> artDepList = artDepService.selectList(new EntityWrapper<>(artDep).eq("is_deleted", false).where("is_deleted = false"));
 
         return artDepList.toString();
     }
@@ -201,6 +213,26 @@ public class TestController {
         artCompany1.setDeleted(false);
         return artCompanyService.update(artCompany, new EntityWrapper<>(artCompany1));
     }
+    @RequestMapping(value = "update5", method = RequestMethod.PUT)
+    public Boolean updateArtCompany5(@RequestBody ArtCompany artCompany) {
+        artCompany.setDeleted(false);
+        ArtCompany artCompany1 = new ArtCompany();
+        artCompany1.setAge(34);
+        artCompany1.setName("蔡翔");
+        return artCompanyService.update(artCompany, new EntityWrapper<>(artCompany1).eq("is_deleted", false));
+    }
+
+    @RequestMapping(value = "update6", method = RequestMethod.PUT)
+    public Boolean updateArtCompany6(@RequestBody ArtCompany artCompany) {
+        artCompany.setDeleted(false);
+        return artCompanyService.update(artCompany, new EntityWrapper<ArtCompany>().eq("age",34).eq("is_deleted", false));
+    }
+
+    @RequestMapping(value = "update4", method = RequestMethod.PUT)
+    public Boolean updateArtCompany4(@RequestBody ArtCompany artCompany) {
+        artCompany.setDeleted(false);
+        return artCompanyService.update(artCompany, new EntityWrapper<ArtCompany>().eq("age", 34).eq("name", "蔡翔"));
+    }
 
     @RequestMapping(value = "update3", method = RequestMethod.PUT)
     public Boolean updateArtDep3(@RequestBody ArtDep artDep) {
@@ -248,20 +280,28 @@ public class TestController {
         return artDepMapper.selectPage(page, new EntityWrapper<>(artDep));
     }
 
+    @GetMapping(value = "selectPage2")
+    public List<ArtDep> selectPage2(@RequestParam Integer age){
+        Page page = new Page(2,3);
+        return artDepMapper.selectPage(page, new EntityWrapper<ArtDep>().where("is_deleted = false"));
+    }
+
     @GetMapping(value = "selectPageMap")
-    public String selectPage2(@RequestParam Integer age){
+    public String selectPage3(@RequestParam Integer age){
         ArtDep artDep = new ArtDep();
         artDep.setAge(age);
         artDep.setDepCode("XZB");
         artDep.setCreatedDate(null);
         Page page = new Page(2,3);
 
-        List<Map<String,Object>> list = artDepMapper.selectMapsPage(page, new EntityWrapper<>(artDep));
+        List<Map<String,Object>> list = artDepMapper.selectMapsPage(page, new EntityWrapper<>(artDep).eq("is_deleted", false).where("is_deleted = false"));
         return list.toString();
     }
 
     @GetMapping(value = "noneParameterTest")
     public String noneParameterTest(){
+        Locale locale = LocaleContextHolder.getLocale();
+        System.out.println(locale.toString());
         return artDepMapper.testId();
     }
 

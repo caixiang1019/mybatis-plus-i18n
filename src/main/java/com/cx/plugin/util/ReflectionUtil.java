@@ -17,7 +17,6 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Stream;
 
 /**
  * Created by caixiang on 2017/8/15.
@@ -271,13 +270,12 @@ public class ReflectionUtil {
      * @param supClazz    父类Class
      * @return
      */
-    public static ConcurrentMap<Class<?>, Reflector> getReflectorsFromPackage(String packagePath, Class supClazz) {
-        if (StringUtils.isEmpty(packagePath)) {
-            throw new ReflectException("Can not find domain package path which needs to be initialized!");
+    public static ConcurrentMap<Class<?>, Reflector> getReflectorsFromPackage(List<String> packagePath, Class supClazz) {
+        if(CollectionUtils.isEmpty(packagePath)){
+            throw new ReflectException("VFS scan have not initialized yet!");
         }
         ConcurrentHashMap<Class<?>, Reflector> map = new ConcurrentHashMap<>();
-        String[] packageArray = packagePath.split(",");
-        Stream.of(packageArray).forEach(p -> {
+        packagePath.stream().forEach(p -> {
             List<Class<?>> classList = PackageScannerUtil.getClassFromSuperClass(p, supClazz);
             if (CollectionUtils.isEmpty(classList)) {
                 log.warn("packagePath: " + p + ",Can not find specific class which needs to be initialized!");

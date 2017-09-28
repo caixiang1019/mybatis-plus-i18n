@@ -10,6 +10,6 @@
     </update>
 
     <select id="testId">
-        SELECT name from art_dep where id = 908506775263367169
+        SELECT dep_name from art_dep where id = 908506775263367169
     </select>
 </mapper>
