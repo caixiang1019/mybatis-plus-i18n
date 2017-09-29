@@ -305,4 +305,19 @@ public class TestController {
         return artDepMapper.testId();
     }
 
+    @GetMapping(value ="selectListBaseTableInfoWithI18n")
+    public String selectListBaseTableInfoWithI18n(){
+        List<Long> idList = new ArrayList<>();
+        idList.add(908508483712397314L);
+        idList.add(908508667691347970L);
+        List<ArtCompany> artCompanyList = baseI18nService2.selectListBaseTableInfoWithI18n(idList, ArtCompany.class);
+        return artCompanyList.toString();
+    }
+
+    @GetMapping(value ="selectOneBaseTableInfoWithI18n")
+    public String selectOneBaseTableInfoWithI18n(){
+        ArtCompany artCompany = baseI18nService2.selectOneBaseTableInfoWithI18n(908508483712397314L, ArtCompany.class);
+        return artCompany.toString();
+    }
+
 }

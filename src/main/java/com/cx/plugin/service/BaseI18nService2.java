@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.entity.TableInfo;
 import com.baomidou.mybatisplus.toolkit.TableInfoHelper;
 import com.cx.plugin.annotations.I18nField;
 import com.cx.plugin.domain.BaseI18nDomain;
+import com.cx.plugin.domain.BaseI18nMetaData;
 import com.cx.plugin.exception.SqlProcessInterceptorException;
 import com.cx.plugin.util.ReflectionUtil;
 import com.cx.plugin.util.SqlExecuteUtil;
@@ -182,5 +183,112 @@ public class BaseI18nService2 {
         return resultMap;
     }
 
+    /**
+     *
+     * @param idList  主键id集合
+     * @param clazz   继承I18nDomain的类信息
+     * @param <T>
+     * @return
+     */
+    public <T extends BaseI18nDomain> List<T> selectListBaseTableInfoWithI18n(List<Long> idList, Class<T> clazz) {
+        return idList.stream().map(id -> selectOneBaseTableInfoWithI18n(id, clazz)).collect(Collectors.toList());
+    }
 
+    /**
+     *
+     * @param id     主键id集合
+     * @param clazz  继承I18nDomain的类信息
+     * @param <T>
+     * @return
+     */
+    public <T extends BaseI18nDomain> T selectOneBaseTableInfoWithI18n(Long id, Class<T> clazz) {
+        try (Connection connection = dataSource.getConnection()) {
+            TableInfo tableInfo = TableInfoHelper.getTableInfo(clazz);
+            if (tableInfo == null) {
+                throw new SqlProcessInterceptorException("未找到clazz对应tableInfo实例,只支持被mybatis-plus扫描到的domain类,请检查!");
+            }
+            T instance = clazz.newInstance();
+            List<TableFieldInfo> tableFieldInfoList = tableInfo.getFieldList();
+            List<String> i18nFieldNameList = ReflectionUtil.getSpecificAnnotationFieldNameList(clazz, I18nField.class);
+            StringBuilder sbBase = new StringBuilder("SELECT ");
+            tableFieldInfoList.forEach(t -> sbBase.append(t.getColumn() + " AS " + t.getProperty() + ","));
+            sbBase.append("id FROM ").append(tableInfo.getTableName()).append(" WHERE id =?;");
+            List<Object> parameterList = new ArrayList<>();
+            parameterList.add(id);
+            //拿到Base表信息
+            List<Object> resultList = SqlExecuteUtil.executeForListWithManyParameters(connection, sbBase.toString(), parameterList, clazz, tableFieldInfoList);
+            if (resultList.size() > 1) {
+                throw new RuntimeException("数据有问题,一个id至多匹配一条记录!");
+            } else if (resultList.size() == 1) {
+                instance = (T) resultList.get(0);
+            }
+
+            //组装I18n信息为Map<String, List<HashMap<String, String>>>
+            StringBuilder sbI18n = new StringBuilder("SELECT ");
+            tableFieldInfoList.forEach(t -> {
+                if (i18nFieldNameList.contains(t.getProperty())) {
+                    sbI18n.append(t.getColumn() + " AS " + t.getProperty() + ",");
+                }
+            });
+            sbI18n.append("language FROM ").append(tableInfo.getTableName() + "_i18n").append(" WHERE id =?;");
+            try (PreparedStatement psm = connection.prepareStatement(sbI18n.toString())) {
+                for (int i = 0; i < parameterList.size(); i++) {
+                    psm.setObject(i + 1, parameterList.get(i));
+                }
+                ResultSet resultSet = psm.executeQuery();
+                List<BaseI18nMetaData> baseI18nMetaDataList = new ArrayList<>();
+                while (resultSet.next()) {
+                    String language = resultSet.getString("language");
+                    i18nFieldNameList.forEach(t -> {
+                        try {
+                            baseI18nMetaDataList.add(BaseI18nMetaData.builder().language(language).field(t).value(resultSet.getObject(t) == null ? null : String.valueOf(resultSet.getObject(t))).build());
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                        }
+                    });
+                }
+                Map<String, List<HashMap<String, String>>> map = convertList2Map(baseI18nMetaDataList);
+                Invoker setMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(clazz).getSetInvoker("i18n");
+                Object[] param = {map};
+                setMethodInvoker.invoke(instance, param);
+                return instance;
+            } catch (SQLException e) {
+                e.printStackTrace();
+            } catch (InvocationTargetException e) {
+                e.printStackTrace();
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    private Map convertList2Map(List<BaseI18nMetaData> baseI18nMetaDataList){
+        Map<String, List<HashMap<String, String>>> map = new HashMap<>();
+        for (BaseI18nMetaData baseI18nMetaData : baseI18nMetaDataList) {
+            String field = baseI18nMetaData.getField();
+            List subList;
+            if (map.containsKey(field)) {
+                subList = map.get(field);
+
+            } else {
+                subList = new ArrayList<HashMap<String, String>>();
+                map.put(field, subList);
+
+            }
+            //若value 为null,则不构造map
+            if (baseI18nMetaData.getValue() != null) {
+                Map elementMap = new HashMap<String, String>();
+                elementMap.put(baseI18nMetaData.getLanguage(), baseI18nMetaData.getValue());
+                subList.add(elementMap);
+            }
+        }
+        return map;
+    }
 }
