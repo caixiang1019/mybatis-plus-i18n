@@ -13,8 +13,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.reflection.Reflector;
 import org.apache.ibatis.reflection.invoker.Invoker;
 import org.apache.ibatis.reflection.invoker.MethodInvoker;
+import org.springframework.beans.BeanUtils;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import javax.sql.DataSource;
 import java.lang.reflect.InvocationTargetException;
@@ -54,9 +56,11 @@ public class BaseI18nService2 {
      * @return
      */
     public <T extends BaseI18nDomain> T convertOneByLocale(T entity) {
-
+        if (entity == null) {
+            return entity;
+        }
         Locale locale = LocaleContextHolder.getLocale();
-        log.info("Get locale from browser: " + locale.toString());
+        log.info("Get locale from locale resolver: " + locale.toString());
         try (Connection connection = dataSource.getConnection()) {
             Class clazz = entity.getClass();
             TableInfo tableInfo = TableInfoHelper.getTableInfo(clazz);
@@ -90,6 +94,8 @@ public class BaseI18nService2 {
                 if (resultList.size() > 1) {
                     throw new RuntimeException("数据有问题,一个id和language至多匹配一条记录!");
                 } else if (resultList.size() == 1) {
+                    //保留那些不与表的column对应的属性值,suggested by 淡然
+                    BeanUtils.copyProperties(entity, resultList.get(0), i18nFieldNameList.toArray(new String[]{}));
                     return (T) resultList.get(0);
                 }
             } else {
@@ -110,6 +116,9 @@ public class BaseI18nService2 {
      * @return
      */
     public <T extends BaseI18nDomain> List<T> convertListByLocale(List<T> entityList) {
+        if (CollectionUtils.isEmpty(entityList)) {
+            return entityList;
+        }
         return entityList.stream().map(e -> convertOneByLocale(e)).collect(Collectors.toList());
     }
 
@@ -184,9 +193,8 @@ public class BaseI18nService2 {
     }
 
     /**
-     *
-     * @param idList  主键id集合
-     * @param clazz   继承I18nDomain的类信息
+     * @param idList 主键id集合
+     * @param clazz  继承I18nDomain的类信息
      * @param <T>
      * @return
      */
@@ -195,9 +203,8 @@ public class BaseI18nService2 {
     }
 
     /**
-     *
-     * @param id     主键id集合
-     * @param clazz  继承I18nDomain的类信息
+     * @param id    主键id集合
+     * @param clazz 继承I18nDomain的类信息
      * @param <T>
      * @return
      */
@@ -269,7 +276,7 @@ public class BaseI18nService2 {
         return null;
     }
 
-    private Map convertList2Map(List<BaseI18nMetaData> baseI18nMetaDataList){
+    private Map convertList2Map(List<BaseI18nMetaData> baseI18nMetaDataList) {
         Map<String, List<HashMap<String, String>>> map = new HashMap<>();
         for (BaseI18nMetaData baseI18nMetaData : baseI18nMetaDataList) {
             String field = baseI18nMetaData.getField();

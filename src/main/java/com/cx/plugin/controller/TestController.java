@@ -129,6 +129,7 @@ public class TestController {
     public String selectArtDep(@RequestParam(value = "age") Integer age) {
         ArtDep artDep = new ArtDep();
         artDep.setAge(age);
+        artDep.setCreatedDate(null);
         List<ArtDep> artDepList = artDepService.selectList(new EntityWrapper<>(artDep).eq("is_deleted", false).where("is_deleted = false"));
 
         return artDepList.toString();
