@@ -207,8 +207,8 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                             valueList = parametersStrList.stream().map(p -> ReflectionUtil.getMethodValue(entity, p)).collect(Collectors.toList());
                         } else if (parameterMap.containsKey("cm")) {
                             HashMap<String, Object> entity = (HashMap) parameterMap.get("cm");
-                            List<String> patametersStrList = parameterMappingList.stream().map(s -> s.getProperty().substring(s.getProperty().indexOf("[") + 1, s.getProperty().indexOf("]"))).collect(Collectors.toList());
-                            valueList = patametersStrList.stream().map(p -> entity.get(p)).collect(Collectors.toList());
+                            List<String> parametersStrList = parameterMappingList.stream().map(s -> s.getProperty().substring(s.getProperty().indexOf("[") + 1, s.getProperty().indexOf("]"))).collect(Collectors.toList());
+                            valueList = parametersStrList.stream().map(p -> entity.get(p)).collect(Collectors.toList());
 
                         }
                         String deleteSql = getSqlFromBaseSql(tableInfo, boundSql.getSql(), SqlCommandType.DELETE, null, null, null);

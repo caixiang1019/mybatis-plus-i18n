@@ -292,7 +292,8 @@ public class BaseI18nService2 {
             //若value 为null,则不构造map
             if (baseI18nMetaData.getValue() != null) {
                 Map elementMap = new HashMap<String, String>();
-                elementMap.put(baseI18nMetaData.getLanguage(), baseI18nMetaData.getValue());
+                elementMap.put("language", baseI18nMetaData.getLanguage());
+                elementMap.put("value", baseI18nMetaData.getValue());
                 subList.add(elementMap);
             }
         }
