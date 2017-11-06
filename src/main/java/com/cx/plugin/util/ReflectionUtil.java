@@ -271,7 +271,7 @@ public class ReflectionUtil {
      * @return
      */
     public static ConcurrentMap<Class<?>, Reflector> getReflectorsFromPackage(List<String> packagePath, Class supClazz) {
-        if(CollectionUtils.isEmpty(packagePath)){
+        if (CollectionUtils.isEmpty(packagePath)) {
             throw new ReflectException("VFS scan have not initialized yet!");
         }
         ConcurrentHashMap<Class<?>, Reflector> map = new ConcurrentHashMap<>();
@@ -293,8 +293,9 @@ public class ReflectionUtil {
      * @param data             数据集
      * @param property         field.getName
      * @param result           要设值得对象
+     * @param i18nFieldList    多语言字段list
      */
-    public static void specificProcessInvoker(MethodInvoker setMethodInvoker, Object data, String property, Object result) {
+    public static void specificProcessInvoker(MethodInvoker setMethodInvoker, Object data, String property, Object result, List<String> i18nFieldList) {
         Field methodField = null;
 
         try {
@@ -313,7 +314,11 @@ public class ReflectionUtil {
                 } else if (parameterClazz == DateTime.class) {
                     paramField = new Object[]{new DateTime(resultSet.getObject(property))};
                 } else {
-                    paramField = new Object[]{resultSet.getObject(property)};
+                    if (i18nFieldList.contains(property)) {
+                        paramField = new Object[]{ReflectionUtil.isObjectNullOrStringBlank(resultSet.getObject(property)) ? resultSet.getObject("base_" + property) : resultSet.getObject(property)};
+                    } else {
+                        paramField = new Object[]{resultSet.getObject(property)};
+                    }
                 }
             } else {
                 if (parameterClazz == UUID.class) {
@@ -335,6 +340,22 @@ public class ReflectionUtil {
             e.printStackTrace();
         }
 
+    }
+
+    /**
+     * @param o
+     * @return
+     */
+    public static boolean isObjectNullOrStringBlank(Object o) {
+
+        if (o == null) {
+            return true;
+        }
+        if (o instanceof String) {
+            return org.apache.commons.lang.StringUtils.isBlank((String) o);
+        } else {
+            return false;
+        }
     }
 
 }

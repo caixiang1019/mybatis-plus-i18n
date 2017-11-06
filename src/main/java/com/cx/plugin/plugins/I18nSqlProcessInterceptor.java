@@ -242,7 +242,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                         List<Object> parameterList = new ArrayList<>();
                         parameterList.add(parameter);
                         parameterList.add(LocaleContextHolder.getLocale().toString());
-                        List<Object> objectList = SqlExecuteUtil.executeForListWithManyParameters(connection, selectSql, parameterList, domainClass, tableFieldInfoList);
+                        List<Object> objectList = SqlExecuteUtil.executeForListWithManyParameters(connection, selectSql, parameterList, domainClass, tableFieldInfoList, i18nFieldList);
 
                         //返回值
                         if (CollectionUtils.isNotEmpty(objectList)) {
@@ -265,7 +265,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                                 List<Object> valueList = actualParameterList.stream().map(p -> ReflectionUtil.getMethodValue(ew, p)).collect(Collectors.toList());
                                 String selectSql = getSqlFromBaseSql(tableInfo, baseSql, SqlCommandType.SELECT, tableFieldInfoList, i18nFieldList, sqlWhere);
                                 Map<Long, Map<String, Object>> map = SqlExecuteUtil.executeForMapWithManyParameters(connection, selectSql, valueList, tableFieldInfoList, i18nFieldList);
-                                List<Object> resultList = convertBaseMap2List(domainClass, map, null);
+                                List<Object> resultList = convertBaseMap2List(domainClass, map, null, i18nFieldList);
                                 if (CollectionUtils.isNotEmpty(resultList)) {
                                     return resultList;
                                 }
@@ -358,7 +358,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
         String selectSql = getSqlFromBaseSql(tableInfo, baseSql, SqlCommandType.SELECT, tableFieldInfoList, i18nFieldList, sqlWhere);
         Map<Long, Map<String, Object>> map = SqlExecuteUtil.executeForMapWithManyParameters(connection, selectSql, valueList, tableFieldInfoList, i18nFieldList);
 
-        List<Object> resultList = convertBaseMap2List(domainClass, map, idList);
+        List<Object> resultList = convertBaseMap2List(domainClass, map, idList, i18nFieldList);
 
         return resultList;
     }
@@ -382,7 +382,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                 if (StringUtils.isEmpty(sqlWhere)) {
                     for (TableFieldInfo tableFieldInfo : tableFieldInfoList) {
                         if (i18nFieldList.contains(tableFieldInfo.getProperty())) {
-                            baseSql = replaceColumnWithTableAlias(baseSql, tableFieldInfo.getColumn().replaceAll("`", ""), "i18n", "");
+                            baseSql = replaceColumnWithTableAlias(baseSql, tableFieldInfo.getColumn().replaceAll("`", ""), "i18n", "base." + tableFieldInfo.getColumn() + " AS base_" + tableFieldInfo.getProperty() + ",");
                         } else {
                             baseSql = replaceColumnWithTableAlias(baseSql, tableFieldInfo.getColumn().replaceAll("`", ""), "base", "");
                         }
@@ -532,20 +532,22 @@ public class I18nSqlProcessInterceptor implements Interceptor {
     }
 
     /**
+     * @param domainClass
      * @param map
      * @param idList
+     * @param i18nFieldList
      * @return
      */
 
-    private List convertBaseMap2List(Class domainClass, Map<Long, Map<String, Object>> map, List<Long> idList) {
+    private List convertBaseMap2List(Class domainClass, Map<Long, Map<String, Object>> map, List<Long> idList, List<String> i18nFieldList) {
         List<Object> resultList = new ArrayList<>();
         if (CollectionUtils.isEmpty(idList)) {
-            map.forEach((id, subMap) -> getResultListFromMap(domainClass, id, subMap, resultList));
+            map.forEach((id, subMap) -> getResultListFromMap(domainClass, id, subMap, resultList, i18nFieldList));
         } else {
             idList.forEach(i -> {
                 Map<String, Object> subMap = map.get(i);
                 if (subMap != null) {
-                    getResultListFromMap(domainClass, i, subMap, resultList);
+                    getResultListFromMap(domainClass, i, subMap, resultList, i18nFieldList);
                 }
             });
         }
@@ -557,8 +559,9 @@ public class I18nSqlProcessInterceptor implements Interceptor {
      * @param id         id
      * @param subMap     属性子map
      * @param resultList 结果list
+     * @param i18nFieldList 多语言字段list
      */
-    private void getResultListFromMap(Class domainClass, Long id, Map<String, Object> subMap, List<Object> resultList) {
+    private void getResultListFromMap(Class domainClass, Long id, Map<String, Object> subMap, List<Object> resultList, List<String> i18nFieldList) {
         try {
             Object result = domainClass.newInstance();
             if (null == BaseI18nService2.i18nDomainMethodCache.get(domainClass)) {
@@ -572,7 +575,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                 Invoker setMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(fieldName);
                 try {
                     if (setMethodInvoker instanceof MethodInvoker) {
-                        ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, filedValue, fieldName, result);
+                        ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, filedValue, fieldName, result, i18nFieldList);
                     } else {
                         Object[] paramField = {filedValue};
                         setMethodInvoker.invoke(result, paramField);

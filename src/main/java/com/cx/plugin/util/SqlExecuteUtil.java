@@ -140,9 +140,10 @@ public class SqlExecuteUtil {
      * @param parameterList
      * @param domainClass
      * @param tableFieldInfoList
+     * @param i18nFieldList
      * @return
      */
-    public static List executeForListWithManyParameters(Connection connection, String sql, List<Object> parameterList, Class domainClass, List<TableFieldInfo> tableFieldInfoList) {
+    public static List executeForListWithManyParameters(Connection connection, String sql, List<Object> parameterList, Class domainClass, List<TableFieldInfo> tableFieldInfoList, List<String> i18nFieldList) {
         List<Object> objectList = new ArrayList();
         try (PreparedStatement psm = connection.prepareStatement(sql)) {
             for (int i = 0; i < parameterList.size(); i++) {
@@ -158,9 +159,9 @@ public class SqlExecuteUtil {
                     Invoker setMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(t.getProperty());
                     try {
                         if (setMethodInvoker instanceof MethodInvoker) {
-                            ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, resultSet, t.getProperty(), result);
+                            ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, resultSet, t.getProperty(), result, i18nFieldList);
                         } else {
-                            Object[] paramField = {resultSet.getObject(t.getProperty())};
+                            Object[] paramField = {ReflectionUtil.isObjectNullOrStringBlank(resultSet.getObject(t.getProperty())) ? resultSet.getObject("base_" + t.getProperty()) : resultSet.getObject(t.getProperty())};
                             setMethodInvoker.invoke(result, paramField);
                         }
                     } catch (IllegalAccessException e) {
@@ -250,6 +251,9 @@ public class SqlExecuteUtil {
                 if (LocaleContextHolder.getLocale().toString().equalsIgnoreCase(resultSet.getString("language"))) {
                     for (TableFieldInfo tableFieldInfo : tableFieldInfoList) {
                         subMap.put(tableFieldInfo.getProperty(), resultSet.getObject(tableFieldInfo.getProperty()));
+                        if (i18nFieldList.contains(tableFieldInfo.getProperty())) {
+                            subMap.put(tableFieldInfo.getProperty(), ReflectionUtil.isObjectNullOrStringBlank(resultSet.getObject(tableFieldInfo.getProperty())) ? resultSet.getObject("base_" + tableFieldInfo.getProperty()) : resultSet.getObject(tableFieldInfo.getProperty()));
+                        }
                     }
                     map.put(id, subMap);
                 } else {

@@ -74,7 +74,7 @@ public class BaseI18nService2 {
             if (baseTableId != null) {
                 tableFieldInfoList.forEach(f -> {
                     if (i18nFieldNameList.contains(f.getProperty())) {
-                        sb.append(" i18n." + f.getColumn() + " AS " + f.getProperty() + ",");
+                        sb.append(" base." + f.getColumn() + " AS base_" + f.getProperty() + ",i18n." + f.getColumn() + " AS " + f.getProperty() + ",");
                     } else {
                         if (f.getColumn().equals(f.getProperty())) {
                             sb.append(" base." + f.getColumn() + ",");
@@ -90,7 +90,7 @@ public class BaseI18nService2 {
                 List<Object> parameterList = new ArrayList<>();
                 parameterList.add(baseTableId);
                 parameterList.add(locale.toString());
-                List<Object> resultList = SqlExecuteUtil.executeForListWithManyParameters(connection, sb.toString(), parameterList, clazz, tableFieldInfoList);
+                List<Object> resultList = SqlExecuteUtil.executeForListWithManyParameters(connection, sb.toString(), parameterList, clazz, tableFieldInfoList, i18nFieldNameList);
                 if (resultList.size() > 1) {
                     throw new RuntimeException("数据有问题,一个id和language至多匹配一条记录!");
                 } else if (resultList.size() == 1) {
@@ -167,7 +167,7 @@ public class BaseI18nService2 {
                     Invoker setMethodInvoker = i18nDomainMethodCache.get(clazz).getSetInvoker(t);
                     try {
                         if (setMethodInvoker instanceof MethodInvoker) {
-                            ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, resultSet, t, result);
+                            ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, resultSet, t, result, i18nFieldNameList);
                         } else {
                             Object[] paramField = {resultSet.getObject(t)};
                             setMethodInvoker.invoke(result, paramField);
@@ -218,12 +218,17 @@ public class BaseI18nService2 {
             List<TableFieldInfo> tableFieldInfoList = tableInfo.getFieldList();
             List<String> i18nFieldNameList = ReflectionUtil.getSpecificAnnotationFieldNameList(clazz, I18nField.class);
             StringBuilder sbBase = new StringBuilder("SELECT ");
-            tableFieldInfoList.forEach(t -> sbBase.append(t.getColumn() + " AS " + t.getProperty() + ","));
+            tableFieldInfoList.forEach(t -> {
+                sbBase.append(t.getColumn() + " AS " + t.getProperty() + ",");
+                if (i18nFieldNameList.contains(t.getProperty())) {
+                    sbBase.append(t.getColumn() + " AS base_" + t.getProperty() + ",");
+                }
+            });
             sbBase.append("id FROM ").append(tableInfo.getTableName()).append(" WHERE id =?;");
             List<Object> parameterList = new ArrayList<>();
             parameterList.add(id);
             //拿到Base表信息
-            List<Object> resultList = SqlExecuteUtil.executeForListWithManyParameters(connection, sbBase.toString(), parameterList, clazz, tableFieldInfoList);
+            List<Object> resultList = SqlExecuteUtil.executeForListWithManyParameters(connection, sbBase.toString(), parameterList, clazz, tableFieldInfoList, i18nFieldNameList);
             if (resultList.size() > 1) {
                 throw new RuntimeException("数据有问题,一个id至多匹配一条记录!");
             } else if (resultList.size() == 1) {
