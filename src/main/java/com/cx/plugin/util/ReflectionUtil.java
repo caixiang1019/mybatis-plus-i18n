@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.mapper.BaseMapper;
 import com.baomidou.mybatisplus.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.toolkit.MapUtils;
 import com.baomidou.mybatisplus.toolkit.StringUtils;
+import com.cx.plugin.domain.BaseI18nDomain;
 import com.cx.plugin.enums.MethodPrefixEnum;
 import com.cx.plugin.exception.ReflectException;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,9 @@ import org.joda.time.DateTime;
 import java.lang.reflect.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -24,19 +28,34 @@ import java.util.concurrent.ConcurrentMap;
 @Slf4j
 public class ReflectionUtil {
 
+
     private static final String TYPE_NAME_PREFIX = "class ";
 
     /**
      * 反射 method 方法名，例如 getId
      *
-     * @param field
-     * @param str   属性字符串内容
+     * @param field            field
+     * @param methodPrefixEnum get/set
+     * @param str              属性字符串内容
      * @return
      */
     public static String getMethodCapitalize(Field field, MethodPrefixEnum methodPrefixEnum, String str) {
         Class<?> fieldType = field.getType();
         //处理boolean.class||Boolean.class
-        str = StringUtils.removeIsPrefixIfBoolean(str, fieldType);
+        Boolean flag = fieldType != null && (boolean.class.isAssignableFrom(fieldType) || Boolean.class.isAssignableFrom(fieldType));
+        if (flag && str.startsWith("is")) {
+            String propertyName = str.replaceFirst("is", "");
+            if (StringUtils.isEmpty(propertyName)) {
+                str = propertyName;
+            } else {
+
+                String beforeChar = propertyName.substring(0, 1).toLowerCase();
+                String afterChar = propertyName.substring(1, propertyName.length());
+                String firstCharToLowerStr = beforeChar + afterChar;
+                str = propertyName.equals(firstCharToLowerStr) ? propertyName : firstCharToLowerStr;
+            }
+        }
+
         switch (methodPrefixEnum) {
             case GET:
                 return StringUtils.concatCapitalize(boolean.class.equals(fieldType) ? "is" : "get", str);
@@ -45,6 +64,25 @@ public class ReflectionUtil {
             default:
                 throw new ReflectException("Only support reflect get/set method!");
         }
+    }
+
+    /**
+     * 根据class的fieldName反射method的方法名
+     *
+     * @param clazz            指定的class
+     * @param fieldName        field的name
+     * @param methodPrefixEnum get/set
+     * @param str              属性字符串内容
+     * @return
+     */
+    public static String getMethodCapitalizeByFieldName(Class clazz, String fieldName, MethodPrefixEnum methodPrefixEnum, final String str) {
+        try {
+            Field field = clazz.getField(fieldName);
+            return getMethodCapitalize(field, methodPrefixEnum, str);
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        }
+        throw new ReflectException("no such field in clazz!");
     }
 
     /**
@@ -110,7 +148,7 @@ public class ReflectionUtil {
      * @return Class
      */
     @SuppressWarnings("rawtypes")
-    public static Class getSuperClassGenricType(final Class clazz, final int index) {
+    public static Class getSuperClassGenericType(final Class clazz, final int index) {
         Type genType = clazz.getGenericSuperclass();
         if (!(genType instanceof ParameterizedType)) {
             log.warn(String.format("Warn: %s's superclass not ParameterizedType", clazz.getSimpleName()));
@@ -228,6 +266,12 @@ public class ReflectionUtil {
         return Class.forName(className);
     }
 
+    /**
+     * 从XXXMapper中提取其XXXDomain的Class
+     *
+     * @param mapperClass
+     * @return
+     */
     public static Class<?> extractModelClass(Class<?> mapperClass) {
         if (mapperClass == BaseMapper.class) {
             log.warn(" Current Class is BaseMapper ");
@@ -272,13 +316,13 @@ public class ReflectionUtil {
      */
     public static ConcurrentMap<Class<?>, Reflector> getReflectorsFromPackage(List<String> packagePath, Class supClazz) {
         if (CollectionUtils.isEmpty(packagePath)) {
-            throw new ReflectException("VFS scan have not initialized yet!");
+            throw new ReflectException("No i18n package is found!");
         }
         ConcurrentHashMap<Class<?>, Reflector> map = new ConcurrentHashMap<>();
         packagePath.stream().forEach(p -> {
             List<Class<?>> classList = PackageScannerUtil.getClassFromSuperClass(p, supClazz);
             if (CollectionUtils.isEmpty(classList)) {
-                log.warn("packagePath: " + p + ",Can not find specific class which needs to be initialized!");
+                log.warn("PackagePath: " + p + ",Can not find specific class which needs to be initialized!");
             }
             classList.forEach(clz -> map.put(clz, new Reflector(clz)));
         });
@@ -295,11 +339,9 @@ public class ReflectionUtil {
      * @param result           要设值得对象
      * @param i18nFieldList    多语言字段list
      */
-    public static void specificProcessInvoker(MethodInvoker setMethodInvoker, Object data, String property, Object result, List<String> i18nFieldList) {
-        Field methodField = null;
-
+    public static <T extends BaseI18nDomain> void specificProcessInvoker(MethodInvoker setMethodInvoker, Object data, String property, Object result, T entity, List<String> i18nFieldList) {
         try {
-            methodField = setMethodInvoker.getClass().getDeclaredField("method");
+            Field methodField = setMethodInvoker.getClass().getDeclaredField("method");
             methodField.setAccessible(true);
             Method method = (Method) methodField.get(setMethodInvoker);
             //确定是set方法且只有一个参数
@@ -307,12 +349,19 @@ public class ReflectionUtil {
             Object[] paramField;
             if (data instanceof ResultSet) {
                 ResultSet resultSet = (ResultSet) data;
-                //针对UUID、DateTime特殊处理,如有其它特殊类型,需要放在这里处理
+                //String -> UUID,TimeStamp -> DateTime,TimeStamp->ZonedDateTime
+                //针对UUID、DateTime、ZonedDateTime类型的转化做特殊处理,如有其它java字段属性类型与数据库column类型不匹配情况,需要在这里处理
                 if (parameterClazz == UUID.class) {
-                    paramField = new Object[]{UUID.fromString((String) resultSet.getObject(property))};
+                    if (resultSet.getObject(property) == null) {
+                        paramField = new Object[]{null};
+                    } else {
+                        paramField = new Object[]{UUID.fromString((String) resultSet.getObject(property))};
+                    }
                     setMethodInvoker.invoke(result, paramField);
                 } else if (parameterClazz == DateTime.class) {
                     paramField = new Object[]{new DateTime(resultSet.getObject(property))};
+                } else if (parameterClazz == ZonedDateTime.class) {
+                    paramField = new Object[]{ZonedDateTime.ofInstant(resultSet.getTimestamp(property, Calendar.getInstance()).toInstant(), ZoneId.systemDefault())};
                 } else {
                     if (i18nFieldList.contains(property)) {
                         paramField = new Object[]{ReflectionUtil.isObjectNullOrStringBlank(resultSet.getObject(property)) ? resultSet.getObject("base_" + property) : resultSet.getObject(property)};
@@ -322,14 +371,31 @@ public class ReflectionUtil {
                 }
             } else {
                 if (parameterClazz == UUID.class) {
-                    paramField = new Object[]{UUID.fromString(String.valueOf(data))};
+                    if (data == null) {
+                        paramField = new Object[]{null};
+                    } else {
+                        paramField = new Object[]{UUID.fromString(String.valueOf(data))};
+                    }
                 } else if (parameterClazz == DateTime.class) {
                     paramField = new Object[]{new DateTime(data)};
+                } else if (parameterClazz == ZonedDateTime.class) {
+                    paramField = new Object[]{ZonedDateTime.ofInstant(((Timestamp) data).toInstant(), ZoneId.systemDefault())};
                 } else {
                     paramField = new Object[]{data};
                 }
             }
-            setMethodInvoker.invoke(result, paramField);
+
+            try {
+                setMethodInvoker.invoke(result, paramField);
+            } catch (Exception e) {
+                log.warn("Parameter mismatch,value: {},property: {}", paramField, property);
+                if (entity == null) {
+                    setMethodInvoker.invoke(result, null);
+                } else {
+                    Object[] o = new Object[]{ReflectionUtil.getMethodValue(entity, property)};
+                    setMethodInvoker.invoke(result, o);
+                }
+            }
         } catch (NoSuchFieldException e) {
             e.printStackTrace();
         } catch (IllegalAccessException e) {
@@ -357,5 +423,4 @@ public class ReflectionUtil {
             return false;
         }
     }
-
 }

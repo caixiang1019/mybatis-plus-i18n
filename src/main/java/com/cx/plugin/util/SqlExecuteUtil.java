@@ -1,6 +1,7 @@
 package com.cx.plugin.util;
 
 import com.baomidou.mybatisplus.entity.TableFieldInfo;
+import com.cx.plugin.domain.BaseI18nDomain;
 import com.cx.plugin.exception.SqlProcessInterceptorException;
 import com.cx.plugin.service.BaseI18nService2;
 import org.apache.ibatis.reflection.invoker.Invoker;
@@ -143,7 +144,7 @@ public class SqlExecuteUtil {
      * @param i18nFieldList
      * @return
      */
-    public static List executeForListWithManyParameters(Connection connection, String sql, List<Object> parameterList, Class domainClass, List<TableFieldInfo> tableFieldInfoList, List<String> i18nFieldList) {
+    public static <T extends BaseI18nDomain> List executeForListWithManyParameters(Connection connection, String sql, List<Object> parameterList, Class domainClass, List<TableFieldInfo> tableFieldInfoList, T entity, List<String> i18nFieldList) {
         List<Object> objectList = new ArrayList();
         try (PreparedStatement psm = connection.prepareStatement(sql)) {
             for (int i = 0; i < parameterList.size(); i++) {
@@ -159,7 +160,7 @@ public class SqlExecuteUtil {
                     Invoker setMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(t.getProperty());
                     try {
                         if (setMethodInvoker instanceof MethodInvoker) {
-                            ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, resultSet, t.getProperty(), result, i18nFieldList);
+                            ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, resultSet, t.getProperty(), result, entity, i18nFieldList);
                         } else {
                             Object[] paramField = {ReflectionUtil.isObjectNullOrStringBlank(resultSet.getObject(t.getProperty())) ? resultSet.getObject("base_" + t.getProperty()) : resultSet.getObject(t.getProperty())};
                             setMethodInvoker.invoke(result, paramField);
@@ -174,9 +175,8 @@ public class SqlExecuteUtil {
 
                 });
                 Invoker idSetMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker("id");
-                Object[] params = {resultSet.getLong("id")};
-
-                idSetMethodInvoker.invoke(result, params);
+                Object[] paramId = {resultSet.getLong("id")};
+                idSetMethodInvoker.invoke(result, paramId);
                 objectList.add(result);
             }
         } catch (SQLException e) {
@@ -253,8 +253,7 @@ public class SqlExecuteUtil {
                         subMap.put(tableFieldInfo.getProperty(), resultSet.getObject(tableFieldInfo.getProperty()));
                         if (i18nFieldList.contains(tableFieldInfo.getProperty())) {
                             subMap.put(tableFieldInfo.getProperty(), ReflectionUtil.isObjectNullOrStringBlank(resultSet.getObject(tableFieldInfo.getProperty())) ? resultSet.getObject("base_" + tableFieldInfo.getProperty()) : resultSet.getObject(tableFieldInfo.getProperty()));
-                        }
-                    }
+                        }                    }
                     map.put(id, subMap);
                 } else {
                     if (!map.containsKey(id)) {
@@ -272,5 +271,4 @@ public class SqlExecuteUtil {
             e.printStackTrace();
         }
     }
-
 }

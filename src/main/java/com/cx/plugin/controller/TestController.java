@@ -321,4 +321,10 @@ public class TestController {
         return artCompany.toString();
     }
 
+    @GetMapping(value ="selectOneTranslatedTableInfoWithI18n")
+    public String selectOneTranslatedTableInfoWithI18n(){
+        ArtCompany artCompany = baseI18nService2.selectOneTranslatedTableInfoWithI18n(908508483712397314L, ArtCompany.class);
+        return artCompany.toString();
+    }
+
 }

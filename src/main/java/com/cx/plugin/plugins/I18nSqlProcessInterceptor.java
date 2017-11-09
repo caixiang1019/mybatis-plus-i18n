@@ -52,7 +52,6 @@ import java.util.stream.Collectors;
 @Intercepts({@Signature(type = Executor.class, method = "update", args = {MappedStatement.class, Object.class}),
         @Signature(type = Executor.class, method = "query", args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class})})
 public class I18nSqlProcessInterceptor implements Interceptor {
-
     private static final String ID_CONSTANT = "id";
     private static final String LANGUAGE_CONSTANT = "language";
     private static final String VALUE_CONSTANT = "value";
@@ -242,7 +241,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                         List<Object> parameterList = new ArrayList<>();
                         parameterList.add(parameter);
                         parameterList.add(LocaleContextHolder.getLocale().toString());
-                        List<Object> objectList = SqlExecuteUtil.executeForListWithManyParameters(connection, selectSql, parameterList, domainClass, tableFieldInfoList, i18nFieldList);
+                        List<Object> objectList = SqlExecuteUtil.executeForListWithManyParameters(connection, selectSql, parameterList, domainClass, tableFieldInfoList, null, i18nFieldList);
 
                         //返回值
                         if (CollectionUtils.isNotEmpty(objectList)) {
@@ -463,7 +462,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
      * @param connection    数据库连接
      * @param baseTableId   基本表id值
      */
-    private void execInsertOrUpdateList(Map<String, Map<String, String>> metaDataMap, String baseTableName, Connection connection, Long baseTableId) {
+    public void execInsertOrUpdateList(Map<String, Map<String, String>> metaDataMap, String baseTableName, Connection connection, Long baseTableId) {
         metaDataMap.forEach((k, v) -> execInsertOrUpdateOne(k, v, baseTableName, connection, baseTableId));
     }
 
@@ -508,7 +507,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
      * @return
      */
     private Map<String, Map<String, String>> constructMetaDataMap(Object parameter, List<String> i18nFieldNameList) {
-        HashMap<String, List<HashMap<String, String>>> metaData = (HashMap) ((BaseI18nDomain) parameter).getI18n();
+        Map<String, List<Map<String, String>>> metaData = ((BaseI18nDomain) parameter).getI18n();
         List<BaseI18nMetaData> baseI18nMetaDataList = new ArrayList<>();
         Map<String, Map<String, String>> metaDataMap = new HashMap<>();
         if (metaData != null) {
@@ -539,7 +538,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
      * @return
      */
 
-    private List convertBaseMap2List(Class domainClass, Map<Long, Map<String, Object>> map, List<Long> idList, List<String> i18nFieldList) {
+    public List convertBaseMap2List(Class domainClass, Map<Long, Map<String, Object>> map, List<Long> idList, List<String> i18nFieldList) {
         List<Object> resultList = new ArrayList<>();
         if (CollectionUtils.isEmpty(idList)) {
             map.forEach((id, subMap) -> getResultListFromMap(domainClass, id, subMap, resultList, i18nFieldList));
@@ -556,9 +555,9 @@ public class I18nSqlProcessInterceptor implements Interceptor {
     }
 
     /**
-     * @param id         id
-     * @param subMap     属性子map
-     * @param resultList 结果list
+     * @param id            id
+     * @param subMap        属性子map
+     * @param resultList    结果list
      * @param i18nFieldList 多语言字段list
      */
     private void getResultListFromMap(Class domainClass, Long id, Map<String, Object> subMap, List<Object> resultList, List<String> i18nFieldList) {
@@ -575,7 +574,7 @@ public class I18nSqlProcessInterceptor implements Interceptor {
                 Invoker setMethodInvoker = BaseI18nService2.i18nDomainMethodCache.get(domainClass).getSetInvoker(fieldName);
                 try {
                     if (setMethodInvoker instanceof MethodInvoker) {
-                        ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, filedValue, fieldName, result, i18nFieldList);
+                        ReflectionUtil.specificProcessInvoker((MethodInvoker) setMethodInvoker, filedValue, fieldName, result, null, i18nFieldList);
                     } else {
                         Object[] paramField = {filedValue};
                         setMethodInvoker.invoke(result, paramField);
