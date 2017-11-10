@@ -292,7 +292,7 @@ public class BaseI18nService2 {
 
                 }
             });
-            sbBase.append("base.id,i18n.language FROM ").append(tableInfo.getTableName() + " base INNER JOIN ").append(tableInfo.getTableName() + "_i18n i18n ON base.id = i18n.id").append(" WHERE base.id =?;");
+            sbBase.append("base.id,i18n.language FROM ").append(tableInfo.getTableName() + " base LEFT JOIN ").append(tableInfo.getTableName() + "_i18n i18n ON base.id = i18n.id").append(" WHERE base.id =?;");
             List<Object> parameterList = new ArrayList<>();
             parameterList.add(id);
             //拿到翻译后数据信息
