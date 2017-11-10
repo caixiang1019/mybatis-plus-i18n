@@ -359,9 +359,17 @@ public class ReflectionUtil {
                     }
                     setMethodInvoker.invoke(result, paramField);
                 } else if (parameterClazz == DateTime.class) {
-                    paramField = new Object[]{new DateTime(resultSet.getObject(property))};
+                    if (resultSet.getObject(property) == null) {
+                        paramField = new Object[]{null};
+                    } else {
+                        paramField = new Object[]{new DateTime(resultSet.getObject(property))};
+                    }
                 } else if (parameterClazz == ZonedDateTime.class) {
-                    paramField = new Object[]{ZonedDateTime.ofInstant(resultSet.getTimestamp(property, Calendar.getInstance()).toInstant(), ZoneId.systemDefault())};
+                    if (resultSet.getObject(property) == null) {
+                        paramField = new Object[]{null};
+                    } else {
+                        paramField = new Object[]{ZonedDateTime.ofInstant(resultSet.getTimestamp(property, Calendar.getInstance()).toInstant(), ZoneId.systemDefault())};
+                    }
                 } else {
                     if (i18nFieldList.contains(property)) {
                         paramField = new Object[]{ReflectionUtil.isObjectNullOrStringBlank(resultSet.getObject(property)) ? resultSet.getObject("base_" + property) : resultSet.getObject(property)};
@@ -377,9 +385,17 @@ public class ReflectionUtil {
                         paramField = new Object[]{UUID.fromString(String.valueOf(data))};
                     }
                 } else if (parameterClazz == DateTime.class) {
-                    paramField = new Object[]{new DateTime(data)};
+                    if (data == null) {
+                        paramField = new Object[]{null};
+                    } else {
+                        paramField = new Object[]{new DateTime(data)};
+                    }
                 } else if (parameterClazz == ZonedDateTime.class) {
-                    paramField = new Object[]{ZonedDateTime.ofInstant(((Timestamp) data).toInstant(), ZoneId.systemDefault())};
+                    if (data == null) {
+                        paramField = new Object[]{null};
+                    } else {
+                        paramField = new Object[]{ZonedDateTime.ofInstant(((Timestamp) data).toInstant(), ZoneId.systemDefault())};
+                    }
                 } else {
                     paramField = new Object[]{data};
                 }

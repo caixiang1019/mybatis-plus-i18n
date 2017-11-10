@@ -329,7 +329,7 @@ public class BaseI18nService2 {
      * @param id    表id值
      * @return
      */
-    public Map<String, List<HashMap<String, String>>> getI18nMap(Class<? extends BaseI18nDomain> clazz, Long id) {
+    public Map<String, List<Map<String, String>>> getI18nMap(Class<? extends BaseI18nDomain> clazz, Long id) {
 
         TableInfo tableInfo = TableInfoHelper.getTableInfo(clazz);
         if (tableInfo == null) {
@@ -364,7 +364,7 @@ public class BaseI18nService2 {
                         }
                     });
                 }
-                Map<String, List<HashMap<String, String>>> map = convertList2Map(baseI18nMetaDataList);
+                Map<String, List<Map<String, String>>> map = convertList2Map(baseI18nMetaDataList);
                 return map;
             } catch (SQLException e) {
                 e.printStackTrace();
