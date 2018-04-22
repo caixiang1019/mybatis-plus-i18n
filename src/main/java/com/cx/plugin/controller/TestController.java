@@ -2,18 +2,22 @@ package com.cx.plugin.controller;
 
 import com.baomidou.mybatisplus.mapper.EntityWrapper;
 import com.baomidou.mybatisplus.plugins.Page;
-import com.cx.plugin.domain.ArtCompany;
-import com.cx.plugin.domain.ArtDep;
-import com.cx.plugin.domain.TestArtCompany;
+import com.cx.plugin.domain.*;
+import com.cx.plugin.impl.MyXXXX;
 import com.cx.plugin.persistence.mapper.ArtCompanyMapper;
 import com.cx.plugin.persistence.mapper.ArtDepMapper;
+import com.cx.plugin.persistence.mapper.DroolsRuleDetailMapper;
 import com.cx.plugin.persistence.service.ArtCompanyService;
 import com.cx.plugin.persistence.service.ArtCompanyService2;
 import com.cx.plugin.persistence.service.ArtDepService;
 import com.cx.plugin.service.BaseI18nService2;
+import liquibase.util.MD5Util;
 import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -39,6 +43,15 @@ public class TestController {
 
     @Autowired
     private BaseI18nService2 baseI18nService2;
+
+    @Autowired
+    private DroolsRuleDetailMapper droolsRuleDetailMapper;
+
+    @Autowired
+    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    @Autowired
+    @Qualifier("myXXXImpl")
+    private MyXXXX myXXXX;
 
     public TestController(ArtDepService artDepService, ArtCompanyService artCompanyService) {
         this.artDepService = artDepService;
@@ -90,7 +103,6 @@ public class TestController {
     @RequestMapping(value = "selectById2", method = RequestMethod.GET)
     public String selectByIdArtDep(@RequestParam(value = "id") Long id) {
         ArtDep artDep = artDepService.selectById(id);
-
         return artDep.toString();
     }
 
@@ -108,7 +120,7 @@ public class TestController {
 
     @RequestMapping(value = "selectOne", method = RequestMethod.GET)
     public String selectOne(@RequestParam(value = "id") Long id) {
-        ArtCompany artCompany = artCompanyService.selectOne(new EntityWrapper<ArtCompany>().eq("id", id).eq("name", "蔡翔"));
+        ArtCompany artCompany = artCompanyService.selectOne(new EntityWrapper<ArtCompany>().eq("id", id).eq("name", "蔡翔").orderBy("id", false));
 
         if (artCompany == null)
             return null;
@@ -130,7 +142,7 @@ public class TestController {
         ArtDep artDep = new ArtDep();
         artDep.setAge(age);
         artDep.setCreatedDate(null);
-        List<ArtDep> artDepList = artDepService.selectList(new EntityWrapper<>(artDep).eq("is_deleted", false).where("is_deleted = false"));
+        List<ArtDep> artDepList = artDepService.selectList(new EntityWrapper<>(artDep).eq("is_deleted", false).where("is_deleted = false").orderBy("id", false));
 
         return artDepList.toString();
     }
@@ -180,7 +192,7 @@ public class TestController {
     @RequestMapping(value = "addArtDep", method = RequestMethod.POST)
     public Boolean addArtDep(@RequestBody ArtDep artDep) {
         artDep.setDeleted(false);
-        artDep.setCreatedDate(DateTime.now());
+//        artDep.setCreatedDate(DateTime.now());
         return artDepService.insert(artDep);
     }
 
@@ -214,6 +226,7 @@ public class TestController {
         artCompany1.setDeleted(false);
         return artCompanyService.update(artCompany, new EntityWrapper<>(artCompany1));
     }
+
     @RequestMapping(value = "update5", method = RequestMethod.PUT)
     public Boolean updateArtCompany5(@RequestBody ArtCompany artCompany) {
         artCompany.setDeleted(false);
@@ -226,13 +239,14 @@ public class TestController {
     @RequestMapping(value = "update6", method = RequestMethod.PUT)
     public Boolean updateArtCompany6(@RequestBody ArtCompany artCompany) {
         artCompany.setDeleted(false);
-        return artCompanyService.update(artCompany, new EntityWrapper<ArtCompany>().eq("age",34).eq("is_deleted", false));
+        return artCompanyService.update(artCompany, new EntityWrapper<ArtCompany>().eq("age", 34).eq("is_deleted", false));
     }
 
     @RequestMapping(value = "update4", method = RequestMethod.PUT)
     public Boolean updateArtCompany4(@RequestBody ArtCompany artCompany) {
-        artCompany.setDeleted(false);
-        return artCompanyService.update(artCompany, new EntityWrapper<ArtCompany>().eq("age", 34).eq("name", "蔡翔"));
+        myXXXX.test(artCompany);
+        System.out.println("sss");
+        return true;
     }
 
     @RequestMapping(value = "update3", method = RequestMethod.PUT)
@@ -273,41 +287,41 @@ public class TestController {
     }
 
     @GetMapping(value = "selectPage")
-    public List<ArtDep> selectPage(@RequestParam Integer age){
+    public List<ArtDep> selectPage(@RequestParam Integer age) {
         ArtDep artDep = new ArtDep();
         artDep.setAge(age);
         artDep.setCreatedDate(null);
-        Page page = new Page(2,3);
+        Page page = new Page(2, 3);
         return artDepMapper.selectPage(page, new EntityWrapper<>(artDep));
     }
 
     @GetMapping(value = "selectPage2")
-    public List<ArtDep> selectPage2(@RequestParam Integer age){
-        Page page = new Page(2,3);
+    public List<ArtDep> selectPage2(@RequestParam Integer age) {
+        Page page = new Page(2, 3);
         return artDepMapper.selectPage(page, new EntityWrapper<ArtDep>().where("is_deleted = false"));
     }
 
     @GetMapping(value = "selectPageMap")
-    public String selectPage3(@RequestParam Integer age){
+    public String selectPage3(@RequestParam Integer age) {
         ArtDep artDep = new ArtDep();
         artDep.setAge(age);
         artDep.setDepCode("XZB");
         artDep.setCreatedDate(null);
-        Page page = new Page(2,3);
+        Page page = new Page(2, 3);
 
-        List<Map<String,Object>> list = artDepMapper.selectMapsPage(page, new EntityWrapper<>(artDep).eq("is_deleted", false).where("is_deleted = false"));
+        List<Map<String, Object>> list = artDepMapper.selectMapsPage(page, new EntityWrapper<>(artDep).eq("is_deleted", false).where("is_deleted = false"));
         return list.toString();
     }
 
     @GetMapping(value = "noneParameterTest")
-    public String noneParameterTest(){
+    public String noneParameterTest() {
         Locale locale = LocaleContextHolder.getLocale();
         System.out.println(locale.toString());
         return artDepMapper.testId();
     }
 
-    @GetMapping(value ="selectListBaseTableInfoWithI18n")
-    public String selectListBaseTableInfoWithI18n(){
+    @GetMapping(value = "selectListBaseTableInfoWithI18n")
+    public String selectListBaseTableInfoWithI18n() {
         List<Long> idList = new ArrayList<>();
         idList.add(908508483712397314L);
         idList.add(908508667691347970L);
@@ -315,16 +329,72 @@ public class TestController {
         return artCompanyList.toString();
     }
 
-    @GetMapping(value ="selectOneBaseTableInfoWithI18n")
-    public String selectOneBaseTableInfoWithI18n(){
+    @GetMapping(value = "selectOneBaseTableInfoWithI18n")
+    public String selectOneBaseTableInfoWithI18n() {
         ArtCompany artCompany = baseI18nService2.selectOneBaseTableInfoWithI18n(908508483712397314L, ArtCompany.class);
         return artCompany.toString();
     }
 
-    @GetMapping(value ="selectOneTranslatedTableInfoWithI18n")
-    public String selectOneTranslatedTableInfoWithI18n(){
+    @GetMapping(value = "selectOneTranslatedTableInfoWithI18n")
+    public String selectOneTranslatedTableInfoWithI18n() {
         ArtCompany artCompany = baseI18nService2.selectOneTranslatedTableInfoWithI18n(908508483712397314L, ArtCompany.class);
         return artCompany.toString();
     }
 
+    @GetMapping(value = "test2")
+    public Integer test222() {
+        List<DroolsRuleDetail> droolsRuleDetailList = droolsRuleDetailMapper.selectList(null);
+        Map<String, RuleResult> map = new HashMap<String, RuleResult>();
+        for(DroolsRuleDetail droolsRuleDetail : droolsRuleDetailList){
+
+           String key = MD5Util.computeMD5(droolsRuleDetail.getDroolsRuleDetailValue());
+           if(map.containsKey(key)){
+               RuleResult ruleResult = map.get(key);
+               ruleResult.setCount(ruleResult.getCount() + 1);
+               ruleResult.getOriginRuleList().add(droolsRuleDetail.getDroolsRuleDetailValue());
+           }else{
+               RuleResult ruleResult = new RuleResult();
+               ruleResult.setCount(1);
+               List<String> ruleStringList = new ArrayList<String>();
+               ruleStringList.add(droolsRuleDetail.getDroolsRuleDetailValue());
+               ruleResult.setOriginRuleList(ruleStringList);
+               map.put(key, ruleResult);
+           }
+
+        }
+        map.forEach((a,b) -> {
+            if(b.getCount() > 1){
+                System.out.println(a + "         " +  b.getCount());
+                System.out.println(b.getOriginRuleList());
+                System.out.println("-------------------");
+            }
+        });
+        return 0;
+    }
+
+    @GetMapping(value = "testJDBC")
+    public void testNamedJDBC(){
+        MapSqlParameterSource param = new MapSqlParameterSource();
+        param.addValue("name", "cx133");
+        String aa ="";
+        try{
+                aa = namedParameterJdbcTemplate.queryForObject("select name from art_company where name = :name", param, String.class);
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+                System.out.println(aa);
+    }
+
+    @PostMapping(value = "/custom/form/batch/additional/init")
+    public void batchAdditionalInitCustomForms(@RequestBody List<UUID> formOIDs){
+        formOIDs.stream().forEach(f -> System.out.println(f));
+    }
+
+    @GetMapping(value = "testTransactional")
+    public void testNamedTransactional(){
+        ArtCompany artCompany = new ArtCompany();
+        artCompany.setName("蔡翔");
+        List<ArtCompany> artCompanyList = artCompanyService.selectList(new EntityWrapper<>(artCompany));
+        myXXXX.test2(artCompanyList);
+    }
 }

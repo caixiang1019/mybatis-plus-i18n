@@ -14,10 +14,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by caixiang on 2017/9/6.
@@ -222,7 +219,7 @@ public class SqlExecuteUtil {
      * @return
      */
     public static Map executeForMapWithManyParameters(Connection connection, String sql, List<Object> parameterList, List<TableFieldInfo> tableFieldInfoList, List<String> i18nFieldList) {
-        Map<Long, Map<String, Object>> map = new HashMap<>();
+        Map<Long, Map<String, Object>> map = new LinkedHashMap<>();
         try (PreparedStatement psm = connection.prepareStatement(sql)) {
             for (int i = 0; i < parameterList.size(); i++) {
                 psm.setObject(i + 1, parameterList.get(i));

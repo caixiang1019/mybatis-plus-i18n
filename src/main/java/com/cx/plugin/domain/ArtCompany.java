@@ -5,9 +5,12 @@ import com.baomidou.mybatisplus.annotations.TableId;
 import com.baomidou.mybatisplus.annotations.TableName;
 import com.baomidou.mybatisplus.enums.FieldStrategy;
 import com.cx.plugin.annotations.I18nField;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+
+import java.time.ZonedDateTime;
 
 
 /**
@@ -19,7 +22,6 @@ import lombok.ToString;
 @TableName("art_company")
 public class ArtCompany extends BaseI18nDomain {
 
-    @TableId
     private Long id;
     @I18nField
     private String name;
@@ -30,5 +32,5 @@ public class ArtCompany extends BaseI18nDomain {
     private Integer age;
     @TableField(strategy = FieldStrategy.NOT_NULL)
     private boolean isDeleted;
-
+    protected ZonedDateTime createdDate;
 }

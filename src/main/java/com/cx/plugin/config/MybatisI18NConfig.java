@@ -11,11 +11,13 @@ import com.baomidou.mybatisplus.spring.MybatisSqlSessionFactoryBean;
 import com.cx.plugin.annotations.I18nDomainScan;
 import com.cx.plugin.plugins.I18nSqlProcessInterceptor;
 import com.cx.plugin.web.resolver.HeliosLocaleResolver;
+import liquibase.integration.spring.SpringLiquibase;
 import org.apache.ibatis.plugin.Interceptor;
 import org.mybatis.spring.annotation.MapperScan;
 import org.mybatis.spring.boot.autoconfigure.MybatisProperties;
 import org.mybatis.spring.boot.autoconfigure.SpringBootVFS;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
+import org.springframework.boot.autoconfigure.liquibase.LiquibaseProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -45,6 +47,20 @@ public class MybatisI18NConfig {
         this.dataSourceProperties = dataSourceProperties;
         this.properties = properties;
         this.resourceLoader = (resourceLoader == null) ? new DefaultResourceLoader() : resourceLoader;
+    }
+
+    @Bean
+    public SpringLiquibase liquibase(DataSource dataSource, DataSourceProperties dataSourceProperties,
+                                     LiquibaseProperties liquibaseProperties) {
+
+        // Use liquibase.integration.spring.SpringLiquibase if you don't want Liquibase to start asynchronously
+        SpringLiquibase liquibase = new AsyncSpringLiquibase();
+        liquibase.setDataSource(dataSource);
+        liquibase.setChangeLog("classpath:liquibase/master.xml");
+        liquibase.setContexts(liquibaseProperties.getContexts());
+        liquibase.setDropFirst(liquibaseProperties.isDropFirst());
+        liquibase.setShouldRun(liquibaseProperties.isEnabled());
+        return liquibase;
     }
 
     @Bean

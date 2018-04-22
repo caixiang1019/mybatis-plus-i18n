@@ -8,6 +8,10 @@ import com.cx.plugin.annotations.I18nField;
 import lombok.NoArgsConstructor;
 import org.joda.time.DateTime;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.time.ZonedDateTime;
+
 
 /**
  * @author Caixiang
@@ -17,7 +21,6 @@ import org.joda.time.DateTime;
 @TableName("art_dep")
 public class ArtDep extends BaseI18nDomain {
 
-    @TableId
     private Long id;
     @I18nField
     private String depName;
@@ -30,15 +33,7 @@ public class ArtDep extends BaseI18nDomain {
     private Integer age;
     @TableField(strategy = FieldStrategy.NOT_NULL)
     private Boolean isDeleted;
-    private DateTime createdDate = DateTime.now();
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
+    protected ZonedDateTime createdDate;
 
     public String getDepName() {
         return depName;
@@ -96,11 +91,19 @@ public class ArtDep extends BaseI18nDomain {
         isDeleted = deleted;
     }
 
-    public DateTime getCreatedDate() {
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public ZonedDateTime getCreatedDate() {
         return createdDate;
     }
 
-    public void setCreatedDate(DateTime createdDate) {
+    public void setCreatedDate(ZonedDateTime createdDate) {
         this.createdDate = createdDate;
     }
 
