@@ -12,5 +12,4 @@ public class MybatisPlusI18nApplication {
     public static void main(String[] args) {
         SpringApplication.run(MybatisPlusI18nApplication.class, args);
     }
-    //myTest modify
 }
