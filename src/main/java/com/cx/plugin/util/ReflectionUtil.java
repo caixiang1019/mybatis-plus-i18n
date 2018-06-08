@@ -139,9 +139,7 @@ public class ReflectionUtil {
     }
 
     /**
-     * <p>
      * 反射对象获取泛型
-     * </p>
      *
      * @param clazz 对象
      * @param index 泛型所在位置
